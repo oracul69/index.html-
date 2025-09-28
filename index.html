@@ -35,20 +35,22 @@
     display:flex;align-items:center;justify-content:center;
     background:#0e0e0e;border:2px dashed #2a2a2a;
     cursor:pointer;user-select:none;
-    transition:transform .12s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
-    transform:scale(.95); /* smaller */
+    transform:scale(.88); /* smaller before pick */
+    transition:transform .25s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
   }
-  .card:hover{transform:scale(.97)}
   .card.revealed{border-style:solid}
   .card.red{--edge:var(--red);border-color:var(--red)}
   .card.blue{--edge:var(--blue);border-color:var(--blue)}
 
   /* wiggle pulse until pick */
-  @keyframes wiggle { 0%{transform:scale(.94)} 50%{transform:scale(.98)} 100%{transform:scale(.94)} }
+  @keyframes wiggle { 0%{transform:scale(.86)} 50%{transform:scale(.90)} 100%{transform:scale(.86)} }
   .card.wiggle{animation:wiggle 1.4s ease-in-out infinite}
 
-  /* pop on selection, then settle */
-  .card.picked{transform:scale(1.04)}
+  /* smooth stop + pop up when chosen */
+  .card.picked{
+    animation: none;                /* stop wiggle immediately */
+    transform:scale(1.05);          /* pop bigger smoothly via transition */
+  }
 
   /* WIN: fully green */
   .card.success{
@@ -90,7 +92,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v13</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v14</span></h1>
 
   <div class="panel" id="setupPanel">
     <div class="row">
@@ -98,7 +100,7 @@
       <input id="bet" type="number" min="1" step="1" value="5" />
       <button class="btn-start" id="startBtn">Start Game</button>
     </div>
-    <p class="small muted">Rules: 6s rounds. You can pick only during the first 4s. The chosen card is revealed at 5s. New round starts at 6s regardless of result. Fail sets your current total to 0. No pick → auto cash out.</p>
+    <p class="small muted">6s rounds. Pick only in first 4s. Chosen card reveals at 5s. At 6s: next round (or game ends if FAIL was chosen). No pick → auto cash out.</p>
   </div>
 
   <div class="panel" id="gamePanel" style="display:none">
@@ -142,14 +144,13 @@
 (() => {
   // ======= Tweakables =======
   const MULTIPLIERS = [1.5, 2];
-  const RTP_TARGET = 0.97;     // --- 97% RTP target per pick
+  const RTP_TARGET = 0.97;     // ~97% RTP per pick
   const ROUND_TIME = 6.0;      // seconds per round
   const PICK_WINDOW = 4.0;     // can pick only in first 4s
-  const REVEAL_AT = 5.0;       // reveal chosen at 5s
+  const REVEAL_AT   = 5.0;     // reveal chosen at 5s
   const TOTAL_ROUNDS = 6;
 
   // ---- Compute trap probability from RTP:
-  // We make each card outcome independent:
   // P(trap) = 1 - RTP / average(multiplier)
   const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length;
   const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
@@ -162,9 +163,9 @@
   // ======= State =======
   let stake = 0, current = 0, round = 0;
   let canPick = false, picked = false, chosenCard = null;
-  let timerId = null, t0 = 0;
+  let timerId = null;
   let board = [null,null];
-  let revealTimeout = null, lockTimeout = null, nextRoundTimeout = null;
+  let revealTimeout = null, lockTimeout = null, roundEndTimeout = null;
   let roundOutcome = null; // 'win' | 'trap' | null
   let ac = null, masterGain = null, musicInt = null, muted = false;
 
@@ -238,17 +239,13 @@
   // ======= Helpers =======
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   function updateHUD(){ stakeV.textContent=fmt(stake)+' GEL'; currentV.textContent=fmt(current)+' GEL'; roundV.textContent=`${round} / ${TOTAL_ROUNDS}`; }
-
-  function chooseBoard(){
-    board[0] = sampleCardOutcome();
-    board[1] = sampleCardOutcome();
-  }
+  function chooseBoard(){ board[0] = sampleCardOutcome(); board[1] = sampleCardOutcome(); }
 
   function resetCards(){
     cards.forEach(c=>{
       c.classList.remove('revealed','success','trap','picked');
       c.classList.add('wiggle');
-      c.style.transform='scale(.95)';
+      c.style.transform='scale(.88)';
       c.querySelector('.face').textContent='';
     });
     cashBtn.classList.remove('btn-disabled');
@@ -258,9 +255,9 @@
   function choose(cardEl){
     picked = true; chosenCard = cardEl;
     sfx('click');
-    // stop wiggle on both; pop the chosen
+    // stop wiggle on both; pop the chosen (transition handles smoothness)
     cards.forEach(c=> c.classList.remove('wiggle'));
-    cardEl.classList.add('picked');
+    cardEl.classList.add('picked'); // smooth pop to scale(1.05)
   }
 
   function revealChosen(){
@@ -274,8 +271,8 @@
     if (content.type==='trap'){
       chosenCard.classList.add('trap');
       chosenCard.querySelector('.face').textContent = '×';
-      cashBtn.classList.add('btn-disabled'); // unclickable after fail choice
-      msg.innerHTML = `FALSE card selected. Next round starts soon.`;
+      cashBtn.classList.add('btn-disabled');
+      msg.innerHTML = `FALSE card selected. Game ends at 6s.`;
       roundOutcome = 'trap';
       current = 0; updateHUD();
       sfx('crash');
@@ -284,7 +281,7 @@
       chosenCard.querySelector('.face').textContent = `${content.x}×`;
       current = +(current * content.x).toFixed(2);
       roundOutcome = 'win';
-      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>.`;
+      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>. Next round at 6s.`;
       updateHUD();
       sfx('win');
     }
@@ -299,23 +296,19 @@
   function startRound(){
     round++; if (round > TOTAL_ROUNDS){ stopMusic(); endGame(false); return; }
 
-    // schedule
-    t0 = performance.now();
-    canPick = true; picked = false; chosenCard = null;
     chooseBoard(); resetCards(); updateHUD();
     msg.textContent = 'Pick a card (first 4s)…';
 
-    // lock picking at 4s
-    clearTimeout(lockTimeout); lockTimeout = setTimeout(()=>{ canPick=false; if(!picked){ msg.innerHTML='<span class="muted">No pick — auto cash out.</span>'; sfx("cash"); cashOut(); } }, PICK_WINDOW*1000);
+    canPick = true;
+    clearTimeout(lockTimeout);      lockTimeout   = setTimeout(()=>{ canPick=false; if(!picked){ msg.innerHTML='<span class="muted">No pick — auto cash out.</span>'; sfx("cash"); cashOut(); } }, PICK_WINDOW*1000);
+    clearTimeout(revealTimeout);    revealTimeout = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
+    clearTimeout(roundEndTimeout);  roundEndTimeout = setTimeout(()=>{
+      // At 6s: if FAIL was chosen this round, end the game; else go next round
+      if (roundOutcome === 'trap'){ stopMusic(); endGame(true); }
+      else { startRound(); }
+    }, ROUND_TIME*1000);
 
-    // reveal at 5s if a card was chosen
-    clearTimeout(revealTimeout); revealTimeout = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
-
-    // next round at 6s (regardless of result)
-    clearTimeout(nextRoundTimeout); nextRoundTimeout = setTimeout(()=>{ startRound(); }, ROUND_TIME*1000);
-
-    // run timer bar (6s)
-    startTimer(ROUND_TIME);
+    startTimer(ROUND_TIME); // 6s HUD timer
   }
 
   function startGame(){
@@ -329,7 +322,7 @@
 
   function cashOut(){
     stopMusic();
-    clearTimeout(lockTimeout); clearTimeout(revealTimeout); clearTimeout(nextRoundTimeout);
+    clearTimeout(lockTimeout); clearTimeout(revealTimeout); clearTimeout(roundEndTimeout);
     stopTimer(); endGame(false,true);
   }
 
