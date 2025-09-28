@@ -6,12 +6,8 @@
 <title>Two-Card Multiplier — Mini Game</title>
 <style>
   :root{
-    --bg:#0b0b0b;
-    --text:#f5f5f5;
-    --accent:#25c05a;
-    --red:#e53935;
-    --blue:#1e88e5;
-    --muted:#8a8a8a;
+    --bg:#0b0b0b; --text:#f5f5f5; --accent:#25c05a;
+    --red:#e53935; --blue:#1e88e5; --muted:#8a8a8a; --trap:#ff3b30;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
@@ -20,7 +16,7 @@
   .panel{background:#121212;border:1px solid #222;border-radius:14px;padding:16px;margin-bottom:14px}
   .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   label{font-size:14px;color:#c9c9c9}
-  input[type="number"]{background:#0f0f0f;color:var(--text);border:1px solid #333;border-radius:10px;padding:10px 12px;width:140px;font-size:16px}
+  input[type=number]{background:#0f0f0f;color:var(--text);border:1px solid #333;border-radius:10px;padding:10px 12px;width:140px;font-size:16px}
   button{cursor:pointer;border:0;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:700;transition:transform .04s ease,opacity .2s ease}
   button:active{transform:translateY(1px)}
   .btn-start{background:var(--accent);color:#07190e}
@@ -32,25 +28,25 @@
   .stat .v{display:block;font-weight:800;font-size:18px;margin-top:2px}
   .arena{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0 6px}
   .card{position:relative;isolation:isolate;border-radius:16px;aspect-ratio:3/5;display:flex;align-items:center;justify-content:center;
-        background:#0e0e0e;border:2px dashed #2a2a2a;cursor:pointer;user-select:none;transition:transform .08s ease, box-shadow .15s ease, border-color .2s ease}
+        background:#0e0e0e;border:2px dashed #2a2a2a;cursor:pointer;user-select:none;transition:transform .08s ease,box-shadow .15s ease,border-color .2s ease,background .2s}
   .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
   .card.revealed{border-style:solid}
-  .card.red{--edge: var(--red); border-color:var(--red)}
-  .card.blue{--edge: var(--blue); border-color:var(--blue)}
-  /* when a picked safe card wins, make it green */
-  .card.success{border-color:var(--accent)!important; box-shadow:0 0 0 3px rgba(37,192,90,.25), 0 12px 32px rgba(0,0,0,.45)}
-  /* hide the ? until reveal so it doesn't overlap the cover text */
+  .card.red{--edge:var(--red);border-color:var(--red)}
+  .card.blue{--edge:var(--blue);border-color:var(--blue)}
+  /* WIN highlight */
+  .card.success{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(37,192,90,.25),0 12px 32px rgba(0,0,0,.45)}
+  /* FAIL highlight */
+  .card.trap{border-color:var(--trap)!important;background:radial-gradient(100% 120% at 50% 0%, rgba(255,59,48,.2), transparent 60%)}
+  /* hide ? until reveal so it doesn't overlap TAP TO REVEAL */
   .card .face{font-size:44px;font-weight:900;opacity:0;transition:opacity .15s ease}
   .card.revealed .face{opacity:1}
   .card .label{position:absolute;bottom:10px;left:12px;right:12px;text-align:center;font-size:14px;color:#ddd;opacity:.85}
   .card .cover{
-     position:absolute;inset:0;border-radius:16px;background:
-       radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.04), transparent 40%),
-       linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-     border:2px solid var(--edge);
-     opacity:.95;display:flex;align-items:center;justify-content:center;
-     font-weight:800;font-size:20px;letter-spacing:.06em;
-     z-index:2;
+     position:absolute;inset:0;border-radius:16px;
+     background: radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.04), transparent 40%),
+                 linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,0));
+     border:2px solid var(--edge); opacity:.95; display:flex;align-items:center;justify-content:center;
+     font-weight:800;font-size:20px;letter-spacing:.06em; z-index:2;
   }
   .card.revealed .cover{display:none}
   .timerbar{height:14px;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden}
@@ -65,244 +61,174 @@
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Two-Card Multiplier</h1>
-    <div class="panel" id="setupPanel">
-      <div class="row">
-        <label for="bet">Enter your stake (GEL):</label>
-        <input id="bet" type="number" min="1" step="1" value="5" />
-        <button class="btn-start" id="startBtn">Start Game</button>
-      </div>
-      <p class="small muted">Rules: Pick one of two hidden cards every round. It may reveal a multiplier or a <strong class="lose">FALSE</strong> card (you lose). Each round lasts 5s. There are 6 rounds. You can cash out anytime.</p>
+<div class="wrap">
+  <h1>Two-Card Multiplier</h1>
+  <div class="panel" id="setupPanel">
+    <div class="row">
+      <label for="bet">Enter your stake (GEL):</label>
+      <input id="bet" type="number" min="1" step="1" value="5" />
+      <button class="btn-start" id="startBtn">Start Game</button>
+    </div>
+    <p class="small muted">Rules: Pick one of two hidden cards every round. It may reveal a multiplier or a <strong class="lose">FALSE</strong> card (you lose). Each round lasts 5s. There are 6 rounds. You can cash out anytime.</p>
+  </div>
+
+  <div class="panel" id="gamePanel" style="display:none">
+    <div class="hud">
+      <div class="stat"><span class="k">Stake</span><span class="v" id="stakeV">—</span></div>
+      <div class="stat"><span class="k">Current</span><span class="v" id="currentV">—</span></div>
+      <div class="stat"><span class="k">Round</span><span class="v" id="roundV">—</span></div>
+      <div class="stat"><span class="k">Timer</span><span class="v" id="timerV">5.0s</span></div>
     </div>
 
-    <div class="panel" id="gamePanel" style="display:none">
-      <div class="hud">
-        <div class="stat"><span class="k">Stake</span><span class="v" id="stakeV">—</span></div>
-        <div class="stat"><span class="k">Current</span><span class="v" id="currentV">—</span></div>
-        <div class="stat"><span class="k">Round</span><span class="v" id="roundV">—</span></div>
-        <div class="stat"><span class="k">Timer</span><span class="v" id="timerV">5.0s</span></div>
+    <div class="arena">
+      <div class="card red" data-side="left">
+        <div class="cover">TAP TO REVEAL</div>
+        <div class="face"></div>
+        <div class="label">Red Card</div>
       </div>
-
-      <div class="arena">
-        <div class="card red" data-side="left">
-          <div class="cover">TAP TO REVEAL</div>
-          <div class="face"></div>
-          <div class="label">Red Card</div>
-        </div>
-        <div class="card blue" data-side="right">
-          <div class="cover">TAP TO REVEAL</div>
-          <div class="face"></div>
-          <div class="label">Blue Card</div>
-        </div>
+      <div class="card blue" data-side="right">
+        <div class="cover">TAP TO REVEAL</div>
+        <div class="face"></div>
+        <div class="label">Blue Card</div>
       </div>
-
-      <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
-      <div class="msg" id="msg">&nbsp;</div>
-      <button id="cashOutBtn" class="btn-cash">CASH OUT</button>
-      <div class="footer">Adjust odds inside the code: <span class="muted">MULTIPLIERS, TRAP_RATE, ROUND_TIME, TOTAL_ROUNDS</span></div>
     </div>
 
-    <div class="panel" id="endPanel" style="display:none">
-      <div class="center">
-        <h2 id="endTitle">Game over</h2>
-        <p id="endBody" class="muted"></p>
-        <button class="btn-start" id="restartBtn">Play Again</button>
-      </div>
+    <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
+    <div class="msg" id="msg">&nbsp;</div>
+    <button id="cashOutBtn" class="btn-cash">CASH OUT</button>
+    <div class="footer">Adjust odds in code: <span class="muted">MULTIPLIERS, TRAP_RATE, ROUND_TIME, TOTAL_ROUNDS</span></div>
+  </div>
+
+  <div class="panel" id="endPanel" style="display:none">
+    <div class="center">
+      <h2 id="endTitle">Game over</h2>
+      <p id="endBody" class="muted"></p>
+      <button class="btn-start" id="restartBtn">Play Again</button>
     </div>
   </div>
+</div>
 
 <script>
 (() => {
   // ======= Tweakables =======
-  const MULTIPLIERS = [1.5, 2];   // Possible multipliers
-  const TRAP_RATE   = 0.28;       // Chance a round contains one FALSE card
-  const DOUBLE_SAFE_RATE = 0.20;  // Chance both cards are safe multipliers
-  const ROUND_TIME = 5.0;         // seconds per round
+  const MULTIPLIERS = [1.5, 2];
+  const TRAP_RATE   = 0.28;   // ~28% chance round has a FALSE card
+  const DOUBLE_SAFE_RATE = 0.20;
+  const ROUND_TIME = 5.0;
   const TOTAL_ROUNDS = 6;
 
   // ======= State =======
-  let stake = 0;
-  let current = 0;
-  let round = 0;
-  let picked = false;
-  let timerId = null;
-  let board = [null, null];
+  let stake = 0, current = 0, round = 0;
+  let picked = false, timerId = null;
+  let board = [null,null];
 
   // ======= DOM =======
-  const el = (id)=>document.getElementById(id);
-  const setupPanel = el('setupPanel');
-  const gamePanel = el('gamePanel');
-  const endPanel = el('endPanel');
-  const stakeV = el('stakeV');
-  const currentV = el('currentV');
-  const roundV = el('roundV');
-  const timerV = el('timerV');
-  const timerFill = el('timerFill');
-  const msg = el('msg');
+  const $ = id => document.getElementById(id);
+  const setupPanel = $('setupPanel'), gamePanel = $('gamePanel'), endPanel = $('endPanel');
+  const stakeV = $('stakeV'), currentV = $('currentV'), roundV = $('roundV'), timerV = $('timerV'), timerFill = $('timerFill'), msg = $('msg');
   const cards = [...document.querySelectorAll('.card')];
-  const startBtn = el('startBtn');
-  const cashBtn = el('cashOutBtn');
-  const restartBtn = el('restartBtn');
+  $('startBtn').addEventListener('click', startGame);
+  $('cashOutBtn').addEventListener('click', cashOut);
+  $('restartBtn').addEventListener('click', () => {
+    setupPanel.style.display='block'; gamePanel.style.display='none'; endPanel.style.display='none'; msg.textContent='';
+  });
+  cards.forEach(c => c.addEventListener('click', () => (!timerId||picked)?null:reveal(c)));
 
   // ======= Helpers =======
-  function fmt(n){ return (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
-  function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const rand = arr => arr[Math.floor(Math.random()*arr.length)];
   function chooseBoard(){
-    board = [null,null];
-    const doTrap = Math.random() < TRAP_RATE;
-    const bothSafe = !doTrap && (Math.random() < DOUBLE_SAFE_RATE);
-
+    board=[null,null];
+    const doTrap = Math.random()<TRAP_RATE;
+    const bothSafe = !doTrap && (Math.random()<DOUBLE_SAFE_RATE);
     if (bothSafe){
-      board[0] = {type:'mult', x: rand(MULTIPLIERS)};
-      board[1] = {type:'mult', x: rand(MULTIPLIERS)};
+      board[0]={type:'mult',x:rand(MULTIPLIERS)}; board[1]={type:'mult',x:rand(MULTIPLIERS)};
     } else if (doTrap){
-      const trapSide = Math.random()<0.5 ? 0 : 1;
-      board[trapSide] = {type:'trap'};
-      board[1-trapSide] = {type:'mult', x: rand(MULTIPLIERS)};
+      const s = Math.random()<0.5?0:1;
+      board[s]={type:'trap'}; board[1-s]={type:'mult',x:rand(MULTIPLIERS)};
     } else {
-      board[0] = {type:'mult', x: rand(MULTIPLIERS)};
-      board[1] = {type:'mult', x: rand(MULTIPLIERS)};
+      board[0]={type:'mult',x:rand(MULTIPLIERS)}; board[1]={type:'mult',x:rand(MULTIPLIERS)};
     }
   }
-
-  function updateHUD(){
-    stakeV.textContent = fmt(stake) + " GEL";
-    currentV.textContent = fmt(current) + " GEL";
-    roundV.textContent = `${round} / ${TOTAL_ROUNDS}`;
-  }
-
+  function updateHUD(){ stakeV.textContent=fmt(stake)+' GEL'; currentV.textContent=fmt(current)+' GEL'; roundV.textContent=`${round} / ${TOTAL_ROUNDS}`; }
   function resetCards(){
-    cards.forEach(c=>{
-      c.classList.remove('revealed','success');
-      c.querySelector('.face').textContent = '';
-    });
+    cards.forEach(c=>{ c.classList.remove('revealed','success','trap'); c.querySelector('.face').textContent=''; });
   }
 
   function reveal(cardEl){
     if (picked) return;
     picked = true;
-    const side = cardEl.dataset.side === 'left' ? 0 : 1;
-    const otherSide = 1 - side;
-
+    const side = cardEl.dataset.side==='left'?0:1, otherSide = 1-side;
     const content = board[side];
     cardEl.classList.add('revealed');
-    if (content.type === 'trap'){
+
+    if (content.type==='trap'){
       cardEl.querySelector('.face').textContent = '×';
-      cardEl.querySelector('.face').classList.add('lose');
+      cardEl.classList.add('trap');                 // RED + keep visible
       msg.innerHTML = `FALSE card! <span class="lose">You lose.</span>`;
-      current = 0;
-      updateHUD();
+      current = 0; updateHUD();
+      // Also reveal the other card
+      const other = cards[otherSide]; other.classList.add('revealed');
+      const oc = board[otherSide]; other.querySelector('.face').textContent = (oc.type==='trap')?'×':`${oc.x}×`;
       stopTimer();
-      endGame(true);
+      setTimeout(()=> endGame(true), 1000);         // wait 1s so player sees it
       return;
     } else {
       cardEl.querySelector('.face').textContent = `${content.x}×`;
-      cardEl.querySelector('.face').classList.remove('lose');
       current = +(current * content.x).toFixed(2);
-      cardEl.classList.add('success'); // make winner green
+      cardEl.classList.add('success');             // GREEN on win
       msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>. New total: <strong class="win">${fmt(current)} GEL</strong>.`;
       updateHUD();
     }
 
-    // Also reveal the other card
-    const other = cards[otherSide];
-    other.classList.add('revealed');
-    const oc = board[otherSide];
-    other.querySelector('.face').textContent = (oc.type==='trap') ? '×' : `${oc.x}×`;
+    // reveal the other card too
+    const other = cards[otherSide]; other.classList.add('revealed');
+    const oc = board[otherSide]; other.querySelector('.face').textContent = (oc.type==='trap')?'×':`${oc.x}×`;
 
-    // Move on
     stopTimer();
     setTimeout(()=> startRound(), 800);
   }
 
   function startRound(){
-    round++;
-    if (round > TOTAL_ROUNDS){ endGame(false); return; }
-
-    picked = false;
-    chooseBoard();
-    resetCards();
-    msg.textContent = 'Pick a card!';
-    updateHUD();
+    round++; if (round > TOTAL_ROUNDS){ endGame(false); return; }
+    picked=false; chooseBoard(); resetCards();
+    msg.textContent='Pick a card!'; updateHUD();
     startTimer(ROUND_TIME, ()=>{
-      if (!picked){
-        msg.innerHTML = `<span class="muted">No pick made — auto cash out.</span>`;
-        cashOut(); // AUTO CASH OUT if no choice
-      }
+      if (!picked){ msg.innerHTML='<span class="muted">No pick made — auto cash out.</span>'; cashOut(); }
     });
   }
 
   function startGame(){
     const val = Number(document.getElementById('bet').value);
-    if (!Number.isFinite(val) || val<=0){ alert('Enter a valid positive amount.'); return; }
-    stake = current = Math.floor(val * 100)/100;
-    round = 0;
-    updateHUD();
-    setupPanel.style.display = 'none';
-    endPanel.style.display = 'none';
-    gamePanel.style.display = 'block';
-    cashBtn.classList.remove('btn-disabled');
+    if (!Number.isFinite(val)||val<=0){ alert('Enter a valid positive amount.'); return; }
+    stake=current=Math.floor(val*100)/100; round=0; updateHUD();
+    setupPanel.style.display='none'; endPanel.style.display='none'; gamePanel.style.display='block';
     startRound();
   }
 
-  function cashOut(){
-    stopTimer();
-    endGame(false, true);
-  }
+  function cashOut(){ stopTimer(); endGame(false,true); }
 
-  function endGame(lost=false, cashed=false){
-    stopTimer();
-    gamePanel.style.display = 'none';
-    endPanel.style.display = 'block';
-    const title = document.getElementById('endTitle');
-    const body = document.getElementById('endBody');
-    if (lost){
-      title.textContent = 'You hit a FALSE card.';
-      body.innerHTML = `Final total: <strong class="lose">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL.`;
-    } else if (cashed){
-      title.textContent = 'You cashed out!';
-      body.innerHTML = `You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL at round ${round}/${TOTAL_ROUNDS}.`;
-    } else {
-      title.textContent = 'Rounds complete!';
-      body.innerHTML = `Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong> (stake was ${fmt(stake)} GEL).`;
-    }
+  function endGame(lost=false,cashed=false){
+    stopTimer(); gamePanel.style.display='none'; endPanel.style.display='block';
+    const t=document.getElementById('endTitle'), b=document.getElementById('endBody');
+    if(lost){ t.textContent='You hit a FALSE card.'; b.innerHTML=`Final total: <strong class="lose">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL.`; }
+    else if(cashed){ t.textContent='You cashed out!'; b.innerHTML=`You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL at round ${round}/${TOTAL_ROUNDS}.`; }
+    else { t.textContent='Rounds complete!'; b.innerHTML=`Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong> (stake was ${fmt(stake)} GEL).`; }
   }
 
   // ======= Timer =======
-  function startTimer(seconds, onEnd){
-    stopTimer();
-    const t0 = performance.now();
-    timerFill.style.transform = `scaleX(1)`;
+  function startTimer(seconds,onEnd){
+    stopTimer(); const t0=performance.now();
+    timerFill.style.transform='scaleX(1)';
     function tick(){
-      const elapsed = (performance.now()-t0)/1000;
-      const left = Math.max(0, seconds - elapsed);
-      timerV.textContent = `${left.toFixed(1)}s`;
-      timerFill.style.transform = `scaleX(${Math.max(0,left/seconds)})`;
-      if (left <= 0.01){
-        stopTimer();
-        if (typeof onEnd === 'function') onEnd(true);
-      }
+      const left=Math.max(0, seconds - (performance.now()-t0)/1000);
+      timerV.textContent=`${left.toFixed(1)}s`;
+      timerFill.style.transform=`scaleX(${Math.max(0,left/seconds)})`;
+      if(left<=0.01){ stopTimer(); if(typeof onEnd==='function') onEnd(true); }
     }
-    timerId = setInterval(tick, 100);
-    tick();
+    timerId=setInterval(tick,100); tick();
   }
-  function stopTimer(){ if (timerId){ clearInterval(timerId); timerId=null; } }
-
-  // ======= Events =======
-  startBtn.addEventListener('click', startGame);
-  cashBtn.addEventListener('click', cashOut);
-  restartBtn.addEventListener('click', ()=>{
-    setupPanel.style.display = 'block';
-    gamePanel.style.display = 'none';
-    endPanel.style.display = 'none';
-    msg.textContent = '';
-  });
-  cards.forEach(card=> card.addEventListener('click', ()=>{
-    if (!timerId) return;
-    if (picked) return;
-    reveal(card);
-  }));
+  function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } }
 })();
 </script>
 </body>
