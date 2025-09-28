@@ -106,7 +106,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v17</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v18</span></h1>
 
   <div class="panel" id="setupPanel">
     <div class="row">
@@ -167,7 +167,6 @@
   const PICK_WINDOW = 4.0;      // can pick only in first 4s
   const REVEAL_AT   = 5.0;      // reveal chosen at 5s
   const TOTAL_ROUNDS = 6;
-  const CASH_LOCK_UNTIL_ROUND = 2; // must complete round 1; cash out allowed starting round 2
 
   // ---- Trap probability from RTP for normal rounds:
   const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length; // 1.75
@@ -212,7 +211,7 @@
   cards.forEach(c => c.addEventListener('click', () => (!canPick||picked)?null:choose(c)));
   muteBtn.addEventListener('click', toggleMute);
 
-  // ======= Audio (same tiny synths as before) =======
+  // ======= Audio =======
   function ensureAudio(){
     if (ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -272,7 +271,6 @@
     cards.forEach(c=>{
       c.classList.remove('red','blue');
       if (isBonus) c.classList.add('bonus'); else c.classList.remove('bonus');
-      // Update bottom labels for clarity
       c.querySelector('.label').textContent = isBonus ? 'Bonus Card' : (c.dataset.side==='left'?'Red Card':'Blue Card');
     });
     if (!isBonus){ cards[0].classList.add('red'); cards[1].classList.add('blue'); }
@@ -282,20 +280,36 @@
     cards.forEach(c=>{
       c.classList.remove('revealed','success','trap','picked','shrunk');
       c.classList.add('wiggle');
-      // IMPORTANT: do NOT set inline transform (fixes scale bug)
       c.querySelector('.face').textContent='';
     });
     applyBonusStyles(isBonus);
-    // Cash-out lock: must play round 2 before allowed
-    if (round < CASH_LOCK_UNTIL_ROUND) cashBtn.classList.add('btn-disabled');
+
+    // CASH LOCKING RULES:
+    // - Entire Round 1: locked
+    // - Start of Round 2: locked UNTIL the player chooses a card
+    if (round === 1 || round === 2) cashBtn.classList.add('btn-disabled');
     else cashBtn.classList.remove('btn-disabled');
 
     roundOutcome = null; chosenCard = null; picked = false;
   }
 
+  function sampleBoard(roundNum){
+    if (roundNum === 1) {
+      const arr = [{type:'mult',x:1},{type:'mult',x:2}];
+      if (Math.random()<0.5) arr.reverse();
+      return arr;
+    } else {
+      return [sampleCardOutcomeNormal(), sampleCardOutcomeNormal()];
+    }
+  }
+
   function choose(cardEl){
     picked = true; chosenCard = cardEl;
     sfx('click');
+
+    // In Round 2, enable cash out once the player has chosen a card
+    if (round === 2) cashBtn.classList.remove('btn-disabled');
+
     // stop wiggle on both; chosen grows to 1.00, other stays 0.60
     const other = cards.find(c => c !== cardEl);
     cards.forEach(c=> c.classList.remove('wiggle'));
@@ -312,7 +326,7 @@
     const content = board[side];
 
     if (round === 1){
-      // Bonus: only multipliers, keep gold look (no green overlay)
+      // Bonus: only multipliers, keep gold look
       chosenCard.querySelector('.face').textContent = `${content.x}×`;
       current = +(current * content.x).toFixed(2);
       roundOutcome = 'win';
