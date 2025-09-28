@@ -11,65 +11,74 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  .wrap{max-width:760px;margin:0 auto;padding:24px 16px}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 14px}
   h1{font-size:20px;font-weight:700;margin:0 0 12px}
-  .panel{background:#121212;border:1px solid #222;border-radius:14px;padding:16px;margin-bottom:14px}
-  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .panel{background:#121212;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   label{font-size:14px;color:#c9c9c9}
-  input[type=number]{background:#0f0f0f;color:var(--text);border:1px solid #333;border-radius:10px;padding:10px 12px;width:140px;font-size:16px}
-  button{cursor:pointer;border:0;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:700;transition:transform .04s ease,opacity .2s ease}
+  input[type=number]{background:#0f0f0f;color:var(--text);border:1px solid #333;border-radius:10px;padding:8px 10px;width:120px;font-size:16px}
+  button{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;font-size:16px;font-weight:700;transition:transform .04s ease,opacity .2s ease}
   button:active{transform:translateY(1px)}
   .btn-start{background:var(--accent);color:#07190e}
-  .btn-cash{background:var(--accent);color:#07190e;width:100%;font-size:22px;padding:16px 18px;border-radius:14px}
+  .btn-cash{background:var(--accent);color:#07190e;width:100%;font-size:20px;padding:14px 16px;border-radius:14px}
   .btn-disabled{opacity:.5;pointer-events:none}
 
-  .hud{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
-  .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:10px 12px;min-width:130px}
+  .hud{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+  .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:8px 10px;min-width:120px}
   .stat .k{display:block;color:#b9b9b9;font-size:12px}
-  .stat .v{display:block;font-weight:800;font-size:18px;margin-top:2px}
+  .stat .v{display:block;font-weight:800;font-size:18px;margin-top:1px}
+  .mute{background:#1b1b1b;border:1px solid #333;color:#ddd}
 
-  .arena{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0 6px}
+  .arena{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 6px}
   .card{
     position:relative;isolation:isolate;border-radius:16px;aspect-ratio:3/5;
     display:flex;align-items:center;justify-content:center;
     background:#0e0e0e;border:2px dashed #2a2a2a;
     cursor:pointer;user-select:none;
-    transition:transform .08s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
+    transition:transform .12s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
+    transform:scale(.95); /* smaller */
   }
-  .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .card:hover{transform:scale(.97)}
   .card.revealed{border-style:solid}
   .card.red{--edge:var(--red);border-color:var(--red)}
   .card.blue{--edge:var(--blue);border-color:var(--blue)}
 
-  /* WIN: fully green fill (text remains white) */
+  /* wiggle pulse until pick */
+  @keyframes wiggle { 0%{transform:scale(.94)} 50%{transform:scale(.98)} 100%{transform:scale(.94)} }
+  .card.wiggle{animation:wiggle 1.4s ease-in-out infinite}
+
+  /* pop on selection, then settle */
+  .card.picked{transform:scale(1.04)}
+
+  /* WIN: fully green */
   .card.success{
     border-color:var(--accent)!important;
     background:linear-gradient(180deg, rgba(37,192,90,.32), rgba(37,192,90,.18));
     box-shadow:0 0 0 3px rgba(37,192,90,.25),0 12px 32px rgba(0,0,0,.45);
   }
-  /* FAIL: fully red fill */
+  /* FAIL: fully red */
   .card.trap{
     border-color:var(--trap)!important;
     background:linear-gradient(180deg, rgba(255,59,48,.32), rgba(255,59,48,.18));
     box-shadow:0 0 0 3px rgba(255,59,48,.22),0 12px 32px rgba(0,0,0,.45);
   }
 
-  /* Hide ? until reveal so it doesn't overlap cover text */
-  .card .face{font-size:44px;font-weight:900;opacity:0;transition:opacity .15s ease}
+  /* hide face until reveal so it doesn't overlap */
+  .card .face{font-size:44px;font-weight:900;color:#fff;opacity:0;transition:opacity .15s ease}
   .card.revealed .face{opacity:1}
-  .card .label{position:absolute;bottom:10px;left:12px;right:12px;text-align:center;font-size:14px;color:#ddd;opacity:.85}
+  .card .label{position:absolute;bottom:8px;left:12px;right:12px;text-align:center;font-size:13px;color:#ddd;opacity:.85}
   .card .cover{
      position:absolute;inset:0;border-radius:16px;
      background: radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.04), transparent 40%),
                  linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,0));
      border:2px solid var(--edge); opacity:.95; display:flex;align-items:center;justify-content:center;
-     font-weight:800;font-size:20px;letter-spacing:.06em; z-index:2;
+     font-weight:800;font-size:18px;letter-spacing:.06em; z-index:2;
   }
   .card.revealed .cover{display:none}
 
-  .timerbar{height:14px;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden}
+  .timerbar{height:12px;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden}
   .timerfill{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transform-origin:left;transform:scaleX(1)}
-  .msg{min-height:28px;color:#d8d8d8;margin:8px 2px 2px}
+  .msg{min-height:26px;color:#d8d8d8;margin:8px 2px 2px}
   .muted{color:#a1a1a1}
   .center{text-align:center}
   .small{font-size:12px;color:#a8a8a8}
@@ -77,12 +86,11 @@
   .win{color:#7cf58a}
   .footer{opacity:.7;font-size:12px;margin-top:10px;text-align:center}
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#222;border:1px solid #333;color:#9ad896;font-weight:800;font-size:11px;margin-left:6px}
-  .mute{background:#1b1b1b;border:1px solid #333;color:#ddd}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v11</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v13</span></h1>
 
   <div class="panel" id="setupPanel">
     <div class="row">
@@ -90,7 +98,7 @@
       <input id="bet" type="number" min="1" step="1" value="5" />
       <button class="btn-start" id="startBtn">Start Game</button>
     </div>
-    <p class="small muted">Rules: Pick one of two hidden cards every round. It may reveal a multiplier or a <strong class="lose">FALSE</strong> card (you lose). Each round lasts 5s. There are 6 rounds. You can cash out anytime.</p>
+    <p class="small muted">Rules: 6s rounds. You can pick only during the first 4s. The chosen card is revealed at 5s. New round starts at 6s regardless of result. Fail sets your current total to 0. No pick → auto cash out.</p>
   </div>
 
   <div class="panel" id="gamePanel" style="display:none">
@@ -98,17 +106,17 @@
       <div class="stat"><span class="k">Stake</span><span class="v" id="stakeV">—</span></div>
       <div class="stat"><span class="k">Current</span><span class="v" id="currentV">—</span></div>
       <div class="stat"><span class="k">Round</span><span class="v" id="roundV">—</span></div>
-      <div class="stat"><span class="k">Timer</span><span class="v" id="timerV">5.0s</span></div>
+      <div class="stat"><span class="k">Timer</span><span class="v" id="timerV">6.0s</span></div>
       <button id="muteBtn" class="mute">🔊</button>
     </div>
 
     <div class="arena">
-      <div class="card red" data-side="left">
+      <div class="card red wiggle" data-side="left">
         <div class="cover">TAP TO REVEAL</div>
         <div class="face"></div>
         <div class="label">Red Card</div>
       </div>
-      <div class="card blue" data-side="right">
+      <div class="card blue wiggle" data-side="right">
         <div class="cover">TAP TO REVEAL</div>
         <div class="face"></div>
         <div class="label">Blue Card</div>
@@ -118,7 +126,7 @@
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
     <div class="msg" id="msg">&nbsp;</div>
     <button id="cashOutBtn" class="btn-cash">CASH OUT</button>
-    <div class="footer">Adjust odds in code: <span class="muted">MULTIPLIERS, TRAP_RATE, ROUND_TIME, TOTAL_ROUNDS</span></div>
+    <div class="footer">RTP target ~97%. Adjust odds in code.</div>
   </div>
 
   <div class="panel" id="endPanel" style="display:none">
@@ -134,16 +142,30 @@
 (() => {
   // ======= Tweakables =======
   const MULTIPLIERS = [1.5, 2];
-  const TRAP_RATE   = 0.28;
-  const DOUBLE_SAFE_RATE = 0.20;
-  const ROUND_TIME = 5.0;
+  const RTP_TARGET = 0.97;     // --- 97% RTP target per pick
+  const ROUND_TIME = 6.0;      // seconds per round
+  const PICK_WINDOW = 4.0;     // can pick only in first 4s
+  const REVEAL_AT = 5.0;       // reveal chosen at 5s
   const TOTAL_ROUNDS = 6;
+
+  // ---- Compute trap probability from RTP:
+  // We make each card outcome independent:
+  // P(trap) = 1 - RTP / average(multiplier)
+  const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length;
+  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
+  function sampleCardOutcome(){
+    if (Math.random() < TRAP_PROB) return {type:'trap'};
+    const m = MULTIPLIERS[Math.floor(Math.random()*MULTIPLIERS.length)];
+    return {type:'mult', x:m};
+  }
 
   // ======= State =======
   let stake = 0, current = 0, round = 0;
-  let picked = false, timerId = null;
+  let canPick = false, picked = false, chosenCard = null;
+  let timerId = null, t0 = 0;
   let board = [null,null];
-  let roundOutcome = null; // "win" | "trap" | null
+  let revealTimeout = null, lockTimeout = null, nextRoundTimeout = null;
+  let roundOutcome = null; // 'win' | 'trap' | null
   let ac = null, masterGain = null, musicInt = null, muted = false;
 
   // ======= DOM =======
@@ -158,10 +180,10 @@
   $('restartBtn').addEventListener('click', () => {
     setupPanel.style.display='block'; gamePanel.style.display='none'; endPanel.style.display='none'; msg.textContent='';
   });
-  cards.forEach(c => c.addEventListener('click', () => (!timerId||picked)?null:reveal(c)));
+  cards.forEach(c => c.addEventListener('click', () => (!canPick||picked)?null:choose(c)));
   muteBtn.addEventListener('click', toggleMute);
 
-  // ======= Audio (WebAudio, lightweight) =======
+  // ======= Audio =======
   function ensureAudio(){
     if (ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -182,7 +204,7 @@
       g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(0.4, now+0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, now+0.35);
       o.connect(g).connect(masterGain); o.start(now); o.stop(now+0.4);
-    } else if (type==='crash'){ // noise burst
+    } else if (type==='crash'){
       const buffer = ac.createBuffer(1, ac.sampleRate*0.3, ac.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1)*Math.pow(1-i/data.length, 1.5);
@@ -199,7 +221,7 @@
   }
   function startMusic(){
     if (musicInt || muted) return;
-    const seq = [220, 220, 277, 220, 330, 220, 196, 220]; // simple loop
+    const seq = [220, 220, 277, 220, 330, 220, 196, 220];
     let i = 0;
     musicInt = setInterval(()=>{
       if (muted || !ac) return;
@@ -211,89 +233,89 @@
     }, 220);
   }
   function stopMusic(){ if (musicInt){ clearInterval(musicInt); musicInt=null; } }
-  function toggleMute(){
-    muted = !muted;
-    muteBtn.textContent = muted ? '🔇' : '🔊';
-    if (muted) stopMusic(); else startMusic();
-  }
+  function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇' : '🔊'; if (muted) stopMusic(); else startMusic(); }
 
   // ======= Helpers =======
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  const rand = arr => arr[Math.floor(Math.random()*arr.length)];
-  function chooseBoard(){
-    board=[null,null];
-    const doTrap = Math.random()<TRAP_RATE;
-    const bothSafe = !doTrap && (Math.random()<DOUBLE_SAFE_RATE);
-    if (bothSafe){
-      board[0]={type:'mult',x:rand(MULTIPLIERS)}; board[1]={type:'mult',x:rand(MULTIPLIERS)};
-    } else if (doTrap){
-      const s = Math.random()<0.5?0:1;
-      board[s]={type:'trap'}; board[1-s]={type:'mult',x:rand(MULTIPLIERS)};
-    } else {
-      board[0]={type:'mult',x:rand(MULTIPLIERS)}; board[1]={type:'mult',x:rand(MULTIPLIERS)};
-    }
-  }
   function updateHUD(){ stakeV.textContent=fmt(stake)+' GEL'; currentV.textContent=fmt(current)+' GEL'; roundV.textContent=`${round} / ${TOTAL_ROUNDS}`; }
-  function resetCards(){
-    cards.forEach(c=>{ c.classList.remove('revealed','success','trap'); c.querySelector('.face').textContent=''; });
-    cashBtn.classList.remove('btn-disabled'); // enable cash out at round start
-    roundOutcome = null;
+
+  function chooseBoard(){
+    board[0] = sampleCardOutcome();
+    board[1] = sampleCardOutcome();
   }
 
-  function reveal(cardEl){
-    if (picked) return;
-    picked = true;
+  function resetCards(){
+    cards.forEach(c=>{
+      c.classList.remove('revealed','success','trap','picked');
+      c.classList.add('wiggle');
+      c.style.transform='scale(.95)';
+      c.querySelector('.face').textContent='';
+    });
+    cashBtn.classList.remove('btn-disabled');
+    roundOutcome = null; chosenCard = null; picked = false;
+  }
+
+  function choose(cardEl){
+    picked = true; chosenCard = cardEl;
     sfx('click');
-    const side = cardEl.dataset.side==='left'?0:1, otherSide = 1-side;
+    // stop wiggle on both; pop the chosen
+    cards.forEach(c=> c.classList.remove('wiggle'));
+    cardEl.classList.add('picked');
+  }
+
+  function revealChosen(){
+    if (!chosenCard) return;
+    const side = chosenCard.dataset.side==='left' ? 0 : 1;
+    const otherSide = 1-side;
+
+    // reveal both faces at 5s
+    chosenCard.classList.add('revealed');
     const content = board[side];
-    cardEl.classList.add('revealed');
-
-    // Reveal other card for transparency
-    const other = cards[otherSide];
-    other.classList.add('revealed');
-    const oc = board[otherSide];
-    other.querySelector('.face').textContent = (oc.type==='trap')?'×':`${oc.x}×`;
-
     if (content.type==='trap'){
-      // FAIL -> full red, disable cashout until round ends, play crash
-      cardEl.querySelector('.face').textContent = '×';
-      cardEl.classList.add('trap');
-      cashBtn.classList.add('btn-disabled');   // 50% opacity + unclickable
-      msg.innerHTML = `FALSE card selected. Round will end, then the game ends.`;
+      chosenCard.classList.add('trap');
+      chosenCard.querySelector('.face').textContent = '×';
+      cashBtn.classList.add('btn-disabled'); // unclickable after fail choice
+      msg.innerHTML = `FALSE card selected. Next round starts soon.`;
       roundOutcome = 'trap';
       current = 0; updateHUD();
       sfx('crash');
-      return; // let the timer end the round
     } else {
-      // WIN -> full green, play win; keep round running
-      cardEl.querySelector('.face').textContent = `${content.x}×`;
+      chosenCard.classList.add('success');
+      chosenCard.querySelector('.face').textContent = `${content.x}×`;
       current = +(current * content.x).toFixed(2);
-      cardEl.classList.add('success');
-      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>. Round continues…`;
       roundOutcome = 'win';
+      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>.`;
       updateHUD();
       sfx('win');
     }
+
+    const other = cards[otherSide];
+    other.classList.add('revealed');
+    const oc = board[otherSide];
+    other.querySelector('.face').textContent = (oc.type==='trap') ? '×' : `${oc.x}×`;
   }
 
+  // ======= Round loop =======
   function startRound(){
-    round++; if (round > TOTAL_ROUNDS){ endGame(false); return; }
-    picked=false; chooseBoard(); resetCards();
-    msg.textContent='Pick a card!'; updateHUD();
-    startTimer(ROUND_TIME, ()=>{
-      // End-of-round behavior:
-      if (!picked){
-        msg.innerHTML='<span class="muted">No pick made — auto cash out.</span>';
-        sfx('cash');
-        cashOut();
-        return;
-      }
-      if (roundOutcome === 'trap'){
-        endGame(true);                    // chosen FAIL → end after timer
-      } else {
-        setTimeout(()=> startRound(), 400); // chosen WIN → move to next round
-      }
-    });
+    round++; if (round > TOTAL_ROUNDS){ stopMusic(); endGame(false); return; }
+
+    // schedule
+    t0 = performance.now();
+    canPick = true; picked = false; chosenCard = null;
+    chooseBoard(); resetCards(); updateHUD();
+    msg.textContent = 'Pick a card (first 4s)…';
+
+    // lock picking at 4s
+    clearTimeout(lockTimeout); lockTimeout = setTimeout(()=>{ canPick=false; if(!picked){ msg.innerHTML='<span class="muted">No pick — auto cash out.</span>'; sfx("cash"); cashOut(); } }, PICK_WINDOW*1000);
+
+    // reveal at 5s if a card was chosen
+    clearTimeout(revealTimeout); revealTimeout = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
+
+    // next round at 6s (regardless of result)
+    clearTimeout(nextRoundTimeout); nextRoundTimeout = setTimeout(()=>{ startRound(); }, ROUND_TIME*1000);
+
+    // run timer bar (6s)
+    startTimer(ROUND_TIME);
   }
 
   function startGame(){
@@ -305,25 +327,29 @@
     startRound();
   }
 
-  function cashOut(){ stopTimer(); stopMusic(); endGame(false,true); }
+  function cashOut(){
+    stopMusic();
+    clearTimeout(lockTimeout); clearTimeout(revealTimeout); clearTimeout(nextRoundTimeout);
+    stopTimer(); endGame(false,true);
+  }
 
   function endGame(lost=false,cashed=false){
-    stopTimer(); stopMusic(); gamePanel.style.display='none'; endPanel.style.display='block';
+    gamePanel.style.display='none'; endPanel.style.display='block';
     const t=document.getElementById('endTitle'), b=document.getElementById('endBody');
     if(lost){ t.textContent='You hit a FALSE card.'; b.innerHTML=`Final total: <strong class="lose">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL.`; }
     else if(cashed){ t.textContent='You cashed out!'; b.innerHTML=`You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL at round ${round}/${TOTAL_ROUNDS}.`; }
     else { t.textContent='Rounds complete!'; b.innerHTML=`Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong> (stake was ${fmt(stake)} GEL).`; }
   }
 
-  // ======= Timer =======
-  function startTimer(seconds,onEnd){
-    stopTimer(); const t0=performance.now();
-    timerFill.style.transform='scaleX(1)';
+  // ======= Timer UI =======
+  function startTimer(seconds){
+    stopTimer();
+    const t0 = performance.now();
     function tick(){
       const left=Math.max(0, seconds - (performance.now()-t0)/1000);
       timerV.textContent=`${left.toFixed(1)}s`;
       timerFill.style.transform=`scaleX(${Math.max(0,left/seconds)})`;
-      if(left<=0.01){ stopTimer(); if(typeof onEnd==='function') onEnd(true); }
+      if(left<=0.01){ stopTimer(); }
     }
     timerId=setInterval(tick,100); tick();
   }
