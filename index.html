@@ -10,7 +10,8 @@
     --red:#e53935; --blue:#1e88e5; --muted:#8a8a8a; --trap:#ff3b30;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+            font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
   .wrap{max-width:720px;margin:0 auto;padding:20px 14px}
   h1{font-size:20px;font-weight:700;margin:0 0 12px}
   .panel{background:#121212;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px}
@@ -35,28 +36,22 @@
     display:flex;align-items:center;justify-content:center;
     background:#0e0e0e;border:2px dashed #2a2a2a;
     cursor:pointer;user-select:none;
-    transform:scale(.78); /* much smaller before pick */
+    transform:scale(.60);                         /* base size = 60% */
     transition:transform .28s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
   }
   .card.revealed{border-style:solid}
   .card.red{--edge:var(--red);border-color:var(--red)}
   .card.blue{--edge:var(--blue);border-color:var(--blue)}
 
-  /* wiggle pulse until pick (roughly 0.76 ↔ 0.80) */
-  @keyframes wiggle { 0%{transform:scale(.76)} 50%{transform:scale(.80)} 100%{transform:scale(.76)} }
+  /* wiggle pulse until pick (0.58 ↔ 0.62) */
+  @keyframes wiggle { 0%{transform:scale(.58)} 50%{transform:scale(.62)} 100%{transform:scale(.58)} }
   .card.wiggle{animation:wiggle 1.4s ease-in-out infinite}
 
-  /* chosen: smoothly stop wiggle and grow */
-  .card.picked{
-    animation: none;
-    transform:scale(1.02);
-  }
+  /* chosen: smoothly stop wiggle and grow to full size */
+  .card.picked{animation:none; transform:scale(1.00)}
 
-  /* keep the other card small always */
-  .card.shrunk{
-    animation:none !important;
-    transform:scale(.78) !important;
-  }
+  /* keep the other (unchosen) card at 60% always */
+  .card.shrunk{animation:none !important; transform:scale(.60) !important}
 
   /* WIN: fully green */
   .card.success{
@@ -71,7 +66,7 @@
     box-shadow:0 0 0 3px rgba(255,59,48,.22),0 12px 32px rgba(0,0,0,.45);
   }
 
-  /* hide face until reveal so it doesn't overlap */
+  /* face hidden until reveal to avoid overlay with cover */
   .card .face{font-size:44px;font-weight:900;color:#fff;opacity:0;transition:opacity .15s ease}
   .card.revealed .face{opacity:1}
   .card .label{position:absolute;bottom:8px;left:12px;right:12px;text-align:center;font-size:13px;color:#ddd;opacity:.85}
@@ -98,7 +93,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v15</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v16</span></h1>
 
   <div class="panel" id="setupPanel">
     <div class="row">
@@ -134,7 +129,7 @@
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
     <div class="msg" id="msg">&nbsp;</div>
     <button id="cashOutBtn" class="btn-cash">CASH OUT</button>
-    <div class="footer">RTP target ~120%. Adjust odds in code.</div>
+    <div class="footer">RTP target ~150%. Adjust odds in code.</div>
   </div>
 
   <div class="panel" id="endPanel" style="display:none">
@@ -150,7 +145,7 @@
 (() => {
   // ======= Tweakables =======
   const MULTIPLIERS = [1.5, 2];
-  const RTP_TARGET = 1.20;     // ~120% RTP per pick
+  const RTP_TARGET = 1.50;     // ~150% RTP per pick
   const ROUND_TIME = 6.0;      // seconds per round
   const PICK_WINDOW = 4.0;     // can pick only in first 4s
   const REVEAL_AT   = 5.0;     // reveal chosen at 5s
@@ -159,7 +154,7 @@
   // ---- Trap probability from RTP:
   // Expected factor per pick = (1 - trapProb) * avgMultiplier = RTP_TARGET
   const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length; // 1.75
-  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT))); // ≈0.3142857
+  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT))); // ≈0.142857
   function sampleCardOutcome(){
     if (Math.random() < TRAP_PROB) return {type:'trap'};
     const m = MULTIPLIERS[Math.floor(Math.random()*MULTIPLIERS.length)];
@@ -190,7 +185,7 @@
   cards.forEach(c => c.addEventListener('click', () => (!canPick||picked)?null:choose(c)));
   muteBtn.addEventListener('click', toggleMute);
 
-  // ======= Audio (same tiny synths as before) =======
+  // ======= Audio =======
   function ensureAudio(){
     if (ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -251,7 +246,7 @@
     cards.forEach(c=>{
       c.classList.remove('revealed','success','trap','picked','shrunk');
       c.classList.add('wiggle');
-      c.style.transform='scale(.78)';
+      c.style.transform='scale(.60)';         // ensure 60% base each round
       c.querySelector('.face').textContent='';
     });
     cashBtn.classList.remove('btn-disabled');
@@ -261,11 +256,11 @@
   function choose(cardEl){
     picked = true; chosenCard = cardEl;
     sfx('click');
-    // stop wiggle on both; chosen grows, other stays small
+    // stop wiggle on both; chosen grows to 100%, other stays 60%
     const other = cards.find(c => c !== cardEl);
     cards.forEach(c=> c.classList.remove('wiggle'));
-    cardEl.classList.add('picked');     // smooth pop to ~1.02
-    if (other) other.classList.add('shrunk'); // keep other at 0.78
+    cardEl.classList.add('picked');           // smooth to 1.00
+    if (other) other.classList.add('shrunk'); // keep at .60
   }
 
   function revealChosen(){
@@ -293,7 +288,7 @@
     }
 
     const other = cards[otherSide];
-    other.classList.add('revealed','shrunk'); // stay small
+    other.classList.add('revealed','shrunk'); // stay 60%
     const oc = board[otherSide];
     other.querySelector('.face').textContent = (oc.type==='trap') ? '×' : `${oc.x}×`;
   }
