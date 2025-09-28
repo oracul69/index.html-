@@ -124,7 +124,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v21</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v22</span></h1>
 
   <!-- ====== Setup / Wallet / Autoplay ====== -->
   <div class="panel" id="setupPanel">
@@ -137,6 +137,7 @@
         <span class="k">Wallet</span>
         <span class="v" id="walletV">—</span>
       </div>
+      <button class="btn-secondary" id="topUpBtn">+1500 GEL</button>
       <button class="btn-secondary" id="apSetupBtn">Auto Play Setup</button>
       <button class="btn-start" id="startBtn">Start Game</button>
     </div>
@@ -152,9 +153,7 @@
   <div class="panel" id="autoPanel" style="display:none">
     <h3 style="margin:0 0 10px">Auto Play Setup</h3>
     <p class="small muted" style="margin-top:0">Tap a rectangle per round to preselect a card. Round 1 uses <strong>Bonus (gold)</strong>. Others use Red (Left) / Blue (Right).</p>
-    <div class="ap-grid" id="apGrid">
-      <!-- JS will render 6 rows -->
-    </div>
+    <div class="ap-grid" id="apGrid"></div>
     <div class="ap-actions">
       <button class="btn-secondary" id="apClearBtn">Clear</button>
       <button class="btn-secondary" id="apCancelBtn">Cancel</button>
@@ -220,15 +219,16 @@
   const REVEAL_AT   = 5.0;      // reveal chosen at 5s
   const TOTAL_ROUNDS = 6;
 
-  // Autoplay timing (choose shortly after round starts)
+  // Autoplay timing
   const AUTO_PICK_DELAY_MS = 700;
 
-  // ----- RTP math -----
+  // RTP math
   const AVG_MULT = MULTIPLIERS_WEIGHTED.reduce((s,m)=>s+m.x*m.w,0); // ~2.63
   const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
 
   // ======= State =======
-  let wallet = loadWallet();
+  const BASE_WALLET = 1500; // resets on every page load/refresh
+  let wallet = BASE_WALLET;
   let stake = 0, current = 0, round = 0;
   let canPick = false, picked = false, chosenCard = null;
   let timerId = null;
@@ -237,9 +237,9 @@
   let roundOutcome = null; // 'win' | 'trap' | null
   let ac = null, masterGain = null, musicInt = null, muted = false;
 
-  // Autoplay state
-  let apPlan = loadAutoPlan();   // array of 'L'/'R'/null for 6 rounds
-  let apEnabled = loadAutoEnabled(); // boolean
+  // Autoplay state (persist plan + toggle if you want; wallet always resets)
+  let apPlan = loadAutoPlan();          // array of 'L'/'R'/null
+  let apEnabled = loadAutoEnabled();    // boolean
 
   // ======= DOM =======
   const $ = id => document.getElementById(id);
@@ -251,6 +251,7 @@
   const cashBtn = $('cashOutBtn'), muteBtn = $('muteBtn');
   const apSetupBtn = $('apSetupBtn'), apSaveBtn=$('apSaveBtn'), apCancelBtn=$('apCancelBtn'), apClearBtn=$('apClearBtn'), apGrid=$('apGrid');
   const startBtn = $('startBtn'), restartBtn = $('restartBtn'), autoToggleBtn = $('autoToggleBtn');
+  const topUpBtn = $('topUpBtn');
 
   // ======= Events =======
   startBtn.addEventListener('click', startGame);
@@ -263,13 +264,14 @@
   apCancelBtn.addEventListener('click', ()=>{ autoPanel.style.display='none'; setupPanel.style.display='block'; });
   apClearBtn.addEventListener('click', ()=>{ apPlan = new Array(TOTAL_ROUNDS).fill(null); renderAutoGrid(); });
   autoToggleBtn.addEventListener('click', ()=>{ apEnabled=false; saveAutoEnabled(false); updateAutoHUD(); });
+  topUpBtn.addEventListener('click', ()=>{ wallet += BASE_WALLET; updateWalletUI(); });
 
   betInput.addEventListener('input', ()=> {
     const v = Number(betInput.value||0);
     if (v > wallet) betInput.value = wallet; // clamp to wallet
   });
 
-  // ======= Audio =======
+  // ======= Audio (tiny synths) =======
   function ensureAudio(){
     if (ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -322,13 +324,6 @@
   function toggleMute(){ muted=!muted; muteBtn.textContent = muted ? '🔇' : '🔊'; if (muted) stopMusic(); else startMusic(); }
 
   // ======= Wallet + Auto UI =======
-  function loadWallet(){
-    const v = Number(localStorage.getItem('wallet_v1'));
-    if (Number.isFinite(v) && v>=0) return v;
-    localStorage.setItem('wallet_v1','1500');
-    return 1500;
-  }
-  function saveWallet(){ localStorage.setItem('wallet_v1', String(wallet)); }
   function updateWalletUI(){ walletV.textContent = fmt(wallet)+' GEL'; walletV2.textContent = fmt(wallet)+' GEL'; }
 
   function loadAutoPlan(){
@@ -368,6 +363,7 @@
   function restartToSetup(){
     setupPanel.style.display='block'; gamePanel.style.display='none'; endPanel.style.display='none';
     msg.textContent='';
+    // Reset wallet on return? No—base reset only on full page load as requested.
     updateWalletUI();
   }
 
@@ -422,7 +418,7 @@
     if (val > wallet){ alert('Bet exceeds wallet. Lower your stake.'); return; }
     stake = Math.floor(val*100)/100;
     current = stake;
-    wallet -= stake; saveWallet(); updateWalletUI();
+    wallet -= stake; updateWalletUI();
 
     round=0; updateHUD();
     setupPanel.style.display='none'; endPanel.style.display='none'; gamePanel.style.display='block';
@@ -462,10 +458,7 @@
       current = +(current * content.x).toFixed(2);
       roundOutcome = 'win';
       updateHUD(); sfx('win');
-
-      // Round 2: unlock cash out only AFTER reveal and only if not FAIL
-      if (round === 2) cashBtn.classList.remove('btn-disabled');
-
+      if (round === 2) cashBtn.classList.remove('btn-disabled'); // unlock after reveal
       msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>.`;
     }
 
@@ -478,8 +471,7 @@
   function cashOut(){
     stopMusic();
     clearTimeout(lockTimeout); clearTimeout(revealTimeout); clearTimeout(roundEndTimeout); clearTimeout(autoPickTimeout);
-    // Payout to wallet
-    wallet += current; saveWallet(); updateWalletUI();
+    wallet += current; updateWalletUI();
     stopTimer(); endGame(false,true);
   }
 
@@ -494,7 +486,7 @@
       b.innerHTML=`You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL. Wallet: ${fmt(wallet)} GEL.`;
     } else {
       // Rounds complete with no fail → auto payout
-      wallet += current; saveWallet(); updateWalletUI();
+      wallet += current; updateWalletUI();
       t.textContent='Rounds complete!';
       b.innerHTML=`Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong>. Wallet: ${fmt(wallet)} GEL.`;
     }
@@ -570,13 +562,23 @@
   }
   function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } }
 
-  // ======= Init =======
+  // ======= Init (wallet resets to base on every load) =======
   function init(){
+    // Force wallet to the base amount each page load:
+    wallet = BASE_WALLET;
     updateWalletUI();
     renderAutoGrid();
     updateAutoHUD();
   }
   init();
+
+  // ---- Persist autoplay (optional) ----
+  function saveAutoEnabled(on){ localStorage.setItem('ap_enabled_v1', on?'1':'0'); }
+  function loadAutoEnabled(){ return localStorage.getItem('ap_enabled_v1') === '1'; }
+  function saveAutoPlan(){ localStorage.setItem('ap_plan_v1', JSON.stringify(apPlan)); }
+  function loadAutoPlan(){
+    try { const j = localStorage.getItem('ap_plan_v1'); if (!j) return new Array(TOTAL_ROUNDS).fill(null); const a = JSON.parse(j); if (!Array.isArray(a)) return new Array(TOTAL_ROUNDS).fill(null); return a.slice(0,TOTAL_ROUNDS).concat(new Array(Math.max(0,TOTAL_ROUNDS-a.length)).fill(null)); } catch { return new Array(TOTAL_ROUNDS).fill(null); }
+  }
 })();
 </script>
 </body>
