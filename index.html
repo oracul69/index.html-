@@ -35,21 +35,27 @@
     display:flex;align-items:center;justify-content:center;
     background:#0e0e0e;border:2px dashed #2a2a2a;
     cursor:pointer;user-select:none;
-    transform:scale(.88); /* smaller before pick */
-    transition:transform .25s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
+    transform:scale(.78); /* much smaller before pick */
+    transition:transform .28s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
   }
   .card.revealed{border-style:solid}
   .card.red{--edge:var(--red);border-color:var(--red)}
   .card.blue{--edge:var(--blue);border-color:var(--blue)}
 
-  /* wiggle pulse until pick */
-  @keyframes wiggle { 0%{transform:scale(.86)} 50%{transform:scale(.90)} 100%{transform:scale(.86)} }
+  /* wiggle pulse until pick (roughly 0.76 ↔ 0.80) */
+  @keyframes wiggle { 0%{transform:scale(.76)} 50%{transform:scale(.80)} 100%{transform:scale(.76)} }
   .card.wiggle{animation:wiggle 1.4s ease-in-out infinite}
 
-  /* smooth stop + pop up when chosen */
+  /* chosen: smoothly stop wiggle and grow */
   .card.picked{
-    animation: none;                /* stop wiggle immediately */
-    transform:scale(1.05);          /* pop bigger smoothly via transition */
+    animation: none;
+    transform:scale(1.02);
+  }
+
+  /* keep the other card small always */
+  .card.shrunk{
+    animation:none !important;
+    transform:scale(.78) !important;
   }
 
   /* WIN: fully green */
@@ -92,7 +98,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v14</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v15</span></h1>
 
   <div class="panel" id="setupPanel">
     <div class="row">
@@ -128,7 +134,7 @@
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
     <div class="msg" id="msg">&nbsp;</div>
     <button id="cashOutBtn" class="btn-cash">CASH OUT</button>
-    <div class="footer">RTP target ~97%. Adjust odds in code.</div>
+    <div class="footer">RTP target ~120%. Adjust odds in code.</div>
   </div>
 
   <div class="panel" id="endPanel" style="display:none">
@@ -144,16 +150,16 @@
 (() => {
   // ======= Tweakables =======
   const MULTIPLIERS = [1.5, 2];
-  const RTP_TARGET = 0.97;     // ~97% RTP per pick
+  const RTP_TARGET = 1.20;     // ~120% RTP per pick
   const ROUND_TIME = 6.0;      // seconds per round
   const PICK_WINDOW = 4.0;     // can pick only in first 4s
   const REVEAL_AT   = 5.0;     // reveal chosen at 5s
   const TOTAL_ROUNDS = 6;
 
-  // ---- Compute trap probability from RTP:
-  // P(trap) = 1 - RTP / average(multiplier)
-  const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length;
-  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
+  // ---- Trap probability from RTP:
+  // Expected factor per pick = (1 - trapProb) * avgMultiplier = RTP_TARGET
+  const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length; // 1.75
+  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT))); // ≈0.3142857
   function sampleCardOutcome(){
     if (Math.random() < TRAP_PROB) return {type:'trap'};
     const m = MULTIPLIERS[Math.floor(Math.random()*MULTIPLIERS.length)];
@@ -184,7 +190,7 @@
   cards.forEach(c => c.addEventListener('click', () => (!canPick||picked)?null:choose(c)));
   muteBtn.addEventListener('click', toggleMute);
 
-  // ======= Audio =======
+  // ======= Audio (same tiny synths as before) =======
   function ensureAudio(){
     if (ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -243,9 +249,9 @@
 
   function resetCards(){
     cards.forEach(c=>{
-      c.classList.remove('revealed','success','trap','picked');
+      c.classList.remove('revealed','success','trap','picked','shrunk');
       c.classList.add('wiggle');
-      c.style.transform='scale(.88)';
+      c.style.transform='scale(.78)';
       c.querySelector('.face').textContent='';
     });
     cashBtn.classList.remove('btn-disabled');
@@ -255,9 +261,11 @@
   function choose(cardEl){
     picked = true; chosenCard = cardEl;
     sfx('click');
-    // stop wiggle on both; pop the chosen (transition handles smoothness)
+    // stop wiggle on both; chosen grows, other stays small
+    const other = cards.find(c => c !== cardEl);
     cards.forEach(c=> c.classList.remove('wiggle'));
-    cardEl.classList.add('picked'); // smooth pop to scale(1.05)
+    cardEl.classList.add('picked');     // smooth pop to ~1.02
+    if (other) other.classList.add('shrunk'); // keep other at 0.78
   }
 
   function revealChosen(){
@@ -265,7 +273,6 @@
     const side = chosenCard.dataset.side==='left' ? 0 : 1;
     const otherSide = 1-side;
 
-    // reveal both faces at 5s
     chosenCard.classList.add('revealed');
     const content = board[side];
     if (content.type==='trap'){
@@ -282,12 +289,11 @@
       current = +(current * content.x).toFixed(2);
       roundOutcome = 'win';
       msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>. Next round at 6s.`;
-      updateHUD();
-      sfx('win');
+      updateHUD(); sfx('win');
     }
 
     const other = cards[otherSide];
-    other.classList.add('revealed');
+    other.classList.add('revealed','shrunk'); // stay small
     const oc = board[otherSide];
     other.querySelector('.face').textContent = (oc.type==='trap') ? '×' : `${oc.x}×`;
   }
@@ -303,12 +309,11 @@
     clearTimeout(lockTimeout);      lockTimeout   = setTimeout(()=>{ canPick=false; if(!picked){ msg.innerHTML='<span class="muted">No pick — auto cash out.</span>'; sfx("cash"); cashOut(); } }, PICK_WINDOW*1000);
     clearTimeout(revealTimeout);    revealTimeout = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
     clearTimeout(roundEndTimeout);  roundEndTimeout = setTimeout(()=>{
-      // At 6s: if FAIL was chosen this round, end the game; else go next round
-      if (roundOutcome === 'trap'){ stopMusic(); endGame(true); }
-      else { startRound(); }
+      if (roundOutcome === 'trap'){ stopMusic(); endGame(true); } // end at 6s if FAIL
+      else { startRound(); }                                     // otherwise new round
     }, ROUND_TIME*1000);
 
-    startTimer(ROUND_TIME); // 6s HUD timer
+    startTimer(ROUND_TIME); // 6s timer bar
   }
 
   function startGame(){
