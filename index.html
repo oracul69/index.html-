@@ -22,22 +22,39 @@
   .btn-start{background:var(--accent);color:#07190e}
   .btn-cash{background:var(--accent);color:#07190e;width:100%;font-size:22px;padding:16px 18px;border-radius:14px}
   .btn-disabled{opacity:.55;pointer-events:none}
+
   .hud{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
   .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:10px 12px;min-width:130px}
   .stat .k{display:block;color:#b9b9b9;font-size:12px}
   .stat .v{display:block;font-weight:800;font-size:18px;margin-top:2px}
+
   .arena{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0 6px}
-  .card{position:relative;isolation:isolate;border-radius:16px;aspect-ratio:3/5;display:flex;align-items:center;justify-content:center;
-        background:#0e0e0e;border:2px dashed #2a2a2a;cursor:pointer;user-select:none;transition:transform .08s ease,box-shadow .15s ease,border-color .2s ease,background .2s}
+  .card{
+    position:relative;isolation:isolate;border-radius:16px;aspect-ratio:3/5;
+    display:flex;align-items:center;justify-content:center;
+    background:#0e0e0e;border:2px dashed #2a2a2a;
+    cursor:pointer;user-select:none;
+    transition:transform .08s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
+  }
   .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
   .card.revealed{border-style:solid}
   .card.red{--edge:var(--red);border-color:var(--red)}
   .card.blue{--edge:var(--blue);border-color:var(--blue)}
-  /* WIN highlight */
-  .card.success{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(37,192,90,.25),0 12px 32px rgba(0,0,0,.45)}
-  /* FAIL highlight */
-  .card.trap{border-color:var(--trap)!important;background:radial-gradient(100% 120% at 50% 0%, rgba(255,59,48,.2), transparent 60%)}
-  /* hide ? until reveal so it doesn't overlap TAP TO REVEAL */
+
+  /* WIN: fully green fill, keep text white */
+  .card.success{
+    border-color:var(--accent)!important;
+    background:linear-gradient(180deg, rgba(37,192,90,.28), rgba(37,192,90,.18));
+    box-shadow:0 0 0 3px rgba(37,192,90,.25),0 12px 32px rgba(0,0,0,.45);
+  }
+  /* FAIL: fully red fill */
+  .card.trap{
+    border-color:var(--trap)!important;
+    background:linear-gradient(180deg, rgba(255,59,48,.28), rgba(255,59,48,.18));
+    box-shadow:0 0 0 3px rgba(255,59,48,.22),0 12px 32px rgba(0,0,0,.45);
+  }
+
+  /* Hide ? until reveal so it doesn't overlap cover text */
   .card .face{font-size:44px;font-weight:900;opacity:0;transition:opacity .15s ease}
   .card.revealed .face{opacity:1}
   .card .label{position:absolute;bottom:10px;left:12px;right:12px;text-align:center;font-size:14px;color:#ddd;opacity:.85}
@@ -49,6 +66,7 @@
      font-weight:800;font-size:20px;letter-spacing:.06em; z-index:2;
   }
   .card.revealed .cover{display:none}
+
   .timerbar{height:14px;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden}
   .timerfill{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transform-origin:left;transform:scaleX(1)}
   .msg{min-height:28px;color:#d8d8d8;margin:8px 2px 2px}
@@ -63,6 +81,7 @@
 <body>
 <div class="wrap">
   <h1>Two-Card Multiplier</h1>
+
   <div class="panel" id="setupPanel">
     <div class="row">
       <label for="bet">Enter your stake (GEL):</label>
@@ -112,7 +131,7 @@
 (() => {
   // ======= Tweakables =======
   const MULTIPLIERS = [1.5, 2];
-  const TRAP_RATE   = 0.28;   // ~28% chance round has a FALSE card
+  const TRAP_RATE   = 0.28;
   const DOUBLE_SAFE_RATE = 0.20;
   const ROUND_TIME = 5.0;
   const TOTAL_ROUNDS = 6;
@@ -121,6 +140,7 @@
   let stake = 0, current = 0, round = 0;
   let picked = false, timerId = null;
   let board = [null,null];
+  let roundOutcome = null; // "win" | "trap" | null
 
   // ======= DOM =======
   const $ = id => document.getElementById(id);
@@ -153,6 +173,7 @@
   function updateHUD(){ stakeV.textContent=fmt(stake)+' GEL'; currentV.textContent=fmt(current)+' GEL'; roundV.textContent=`${round} / ${TOTAL_ROUNDS}`; }
   function resetCards(){
     cards.forEach(c=>{ c.classList.remove('revealed','success','trap'); c.querySelector('.face').textContent=''; });
+    roundOutcome = null;
   }
 
   function reveal(cardEl){
@@ -162,31 +183,30 @@
     const content = board[side];
     cardEl.classList.add('revealed');
 
+    // Reveal other card too for transparency
+    const other = cards[otherSide];
+    other.classList.add('revealed');
+    const oc = board[otherSide];
+    other.querySelector('.face').textContent = (oc.type==='trap')?'×':`${oc.x}×`;
+
     if (content.type==='trap'){
       cardEl.querySelector('.face').textContent = '×';
-      cardEl.classList.add('trap');                 // RED + keep visible
-      msg.innerHTML = `FALSE card! <span class="lose">You lose.</span>`;
-      current = 0; updateHUD();
-      // Also reveal the other card
-      const other = cards[otherSide]; other.classList.add('revealed');
-      const oc = board[otherSide]; other.querySelector('.face').textContent = (oc.type==='trap')?'×':`${oc.x}×`;
-      stopTimer();
-      setTimeout(()=> endGame(true), 1000);         // wait 1s so player sees it
+      cardEl.classList.add('trap'); // FULL RED
+      msg.innerHTML = `FALSE card selected. Round will end, then the game ends.`;
+      roundOutcome = 'trap';
+      current = 0;
+      updateHUD();
+      // Do NOT stop the timer; end happens in timer callback.
       return;
     } else {
       cardEl.querySelector('.face').textContent = `${content.x}×`;
       current = +(current * content.x).toFixed(2);
-      cardEl.classList.add('success');             // GREEN on win
-      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>. New total: <strong class="win">${fmt(current)} GEL</strong>.`;
+      cardEl.classList.add('success'); // FULL GREEN
+      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>. Round continues…`;
+      roundOutcome = 'win';
       updateHUD();
+      // Do NOT stop the timer; next round happens in timer callback.
     }
-
-    // reveal the other card too
-    const other = cards[otherSide]; other.classList.add('revealed');
-    const oc = board[otherSide]; other.querySelector('.face').textContent = (oc.type==='trap')?'×':`${oc.x}×`;
-
-    stopTimer();
-    setTimeout(()=> startRound(), 800);
   }
 
   function startRound(){
@@ -194,7 +214,17 @@
     picked=false; chooseBoard(); resetCards();
     msg.textContent='Pick a card!'; updateHUD();
     startTimer(ROUND_TIME, ()=>{
-      if (!picked){ msg.innerHTML='<span class="muted">No pick made — auto cash out.</span>'; cashOut(); }
+      // End-of-round behavior:
+      if (!picked){
+        msg.innerHTML='<span class="muted">No pick made — auto cash out.</span>';
+        cashOut();
+        return;
+      }
+      if (roundOutcome === 'trap'){
+        endGame(true);                    // chosen FAIL → end after timer
+      } else {
+        setTimeout(()=> startRound(), 400); // chosen WIN → move to next round
+      }
     });
   }
 
