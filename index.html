@@ -8,7 +8,7 @@
   :root{
     --bg:#0b0b0b; --text:#f5f5f5; --accent:#25c05a;
     --red:#e53935; --blue:#1e88e5; --muted:#8a8a8a; --trap:#ff3b30;
-    --gold:#f7c948; --gold2:#ffd86b;
+    --gold:#f7c948;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
@@ -38,8 +38,7 @@
     display:flex;align-items:center;justify-content:center;
     background:#0e0e0e;border:2px dashed #2a2a2a;
     cursor:pointer;user-select:none;
-    /* base size = 60% */
-    transform:scale(.60);
+    transform:scale(.60); /* base size 60% */
     transition:transform .28s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
   }
   .card.revealed{border-style:solid}
@@ -106,7 +105,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v18</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v20</span></h1>
 
   <div class="panel" id="setupPanel">
     <div class="row">
@@ -115,7 +114,7 @@
       <button class="btn-start" id="startBtn">Start Game</button>
     </div>
     <p class="small muted">
-      Round 1 is a <strong>Bonus round</strong>: gold cards, no FAIL (only 1× or 2×). You must also play Round 2 before you can cash out.  
+      Round 1 is a <strong>Bonus round</strong>: gold cards, no FAIL (only 1× or 2×). You must also play Round 2; CASH OUT unlocks only after your Round 2 card reveals.  
       Each round lasts 6s: pick in first 4s, chosen card reveals at 5s, round ends at 6s.  
       In Round 1, if you don’t pick, you auto cash out with your original stake.
     </p>
@@ -146,7 +145,7 @@
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
     <div class="msg" id="msg">&nbsp;</div>
     <button id="cashOutBtn" class="btn-cash">CASH OUT</button>
-    <div class="footer">RTP target (normal rounds) ~150% per pick. Adjust odds in code.</div>
+    <div class="footer">Normal rounds RTP target ~150% per pick. Multipliers up to 10× (rare).</div>
   </div>
 
   <div class="panel" id="endPanel" style="display:none">
@@ -161,24 +160,41 @@
 <script>
 (() => {
   // ======= Tweakables =======
-  const MULTIPLIERS = [1.5, 2]; // for normal rounds
-  const RTP_TARGET = 1.50;      // ~150% RTP per pick (normal rounds)
+  // Weighted multipliers for NORMAL rounds (sum of weights = 1).
+  const MULTIPLIERS_WEIGHTED = [
+    {x:1.2, w:0.30},
+    {x:1.5, w:0.22},
+    {x:2.0, w:0.18},
+    {x:3.0, w:0.12},
+    {x:5.0, w:0.08},
+    {x:7.0, w:0.06},
+    {x:10.0, w:0.04}, // rare max win
+  ];
+  const RTP_TARGET = 1.50;      // ~150% per pick (normal rounds)
   const ROUND_TIME = 6.0;       // seconds per round
   const PICK_WINDOW = 4.0;      // can pick only in first 4s
   const REVEAL_AT   = 5.0;      // reveal chosen at 5s
   const TOTAL_ROUNDS = 6;
 
-  // ---- Trap probability from RTP for normal rounds:
-  const AVG_MULT = MULTIPLIERS.reduce((a,b)=>a+b,0) / MULTIPLIERS.length; // 1.75
-  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT))); // ≈0.142857
+  // ---- Derived trap prob using weighted average:
+  const AVG_MULT = MULTIPLIERS_WEIGHTED.reduce((s,m)=>s+m.x*m.w,0); // ≈ 2.63
+  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
+  function sampleWeighted(){
+    const r = Math.random();
+    let acc = 0;
+    for (const m of MULTIPLIERS_WEIGHTED){
+      acc += m.w;
+      if (r <= acc) return m.x;
+    }
+    return MULTIPLIERS_WEIGHTED[MULTIPLIERS_WEIGHTED.length-1].x; // fallback
+  }
   function sampleCardOutcomeNormal(){
     if (Math.random() < TRAP_PROB) return {type:'trap'};
-    const m = MULTIPLIERS[Math.floor(Math.random()*MULTIPLIERS.length)];
-    return {type:'mult', x:m};
+    return {type:'mult', x: sampleWeighted()};
   }
   function sampleBoard(roundNum){
     if (roundNum === 1) {
-      // Bonus round: no trap, exactly [1×, 2×] shuffled
+      // Bonus: exactly [1×, 2×], no trap
       const arr = [{type:'mult',x:1},{type:'mult',x:2}];
       if (Math.random()<0.5) arr.reverse();
       return arr;
@@ -211,7 +227,7 @@
   cards.forEach(c => c.addEventListener('click', () => (!canPick||picked)?null:choose(c)));
   muteBtn.addEventListener('click', toggleMute);
 
-  // ======= Audio =======
+  // ======= Audio (tiny synths) =======
   function ensureAudio(){
     if (ac) return;
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -284,31 +300,20 @@
     });
     applyBonusStyles(isBonus);
 
-    // CASH LOCKING RULES:
-    // - Entire Round 1: locked
-    // - Start of Round 2: locked UNTIL the player chooses a card
+    // CASH-OUT LOCKS:
+    // Round 1: locked entirely
+    // Round 2: locked until the card reveals (we'll enable after reveal if WIN)
     if (round === 1 || round === 2) cashBtn.classList.add('btn-disabled');
     else cashBtn.classList.remove('btn-disabled');
 
     roundOutcome = null; chosenCard = null; picked = false;
   }
 
-  function sampleBoard(roundNum){
-    if (roundNum === 1) {
-      const arr = [{type:'mult',x:1},{type:'mult',x:2}];
-      if (Math.random()<0.5) arr.reverse();
-      return arr;
-    } else {
-      return [sampleCardOutcomeNormal(), sampleCardOutcomeNormal()];
-    }
-  }
-
   function choose(cardEl){
     picked = true; chosenCard = cardEl;
     sfx('click');
 
-    // In Round 2, enable cash out once the player has chosen a card
-    if (round === 2) cashBtn.classList.remove('btn-disabled');
+    // Do NOT enable cash in round 2 here; it unlocks only after reveal if WIN.
 
     // stop wiggle on both; chosen grows to 1.00, other stays 0.60
     const other = cards.find(c => c !== cardEl);
@@ -330,7 +335,7 @@
       chosenCard.querySelector('.face').textContent = `${content.x}×`;
       current = +(current * content.x).toFixed(2);
       roundOutcome = 'win';
-      msg.innerHTML = `Bonus Round: <span class="win">${content.x}×</span>. You must play one more round before cashing out.`;
+      msg.innerHTML = `Bonus Round: <span class="win">${content.x}×</span>. You must play Round 2; cash out unlocks after its reveal.`;
       updateHUD();
       sfx('win');
     } else if (content.type==='trap'){
@@ -346,8 +351,12 @@
       chosenCard.querySelector('.face').textContent = `${content.x}×`;
       current = +(current * content.x).toFixed(2);
       roundOutcome = 'win';
-      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>.`;
       updateHUD(); sfx('win');
+
+      // Unlock cash out AFTER REVEAL in Round 2 only (and keep normal behavior afterward)
+      if (round === 2) cashBtn.classList.remove('btn-disabled');
+
+      msg.innerHTML = `Multiplier hit: <span class="win">${content.x}×</span>.`;
     }
 
     const other = cards[otherSide];
