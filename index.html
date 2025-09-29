@@ -40,17 +40,17 @@
 
   .timerbar{height:12px;background:#161616;border:1px solid #2b2b2b;border-radius:999px;overflow:hidden}
   .timerfill{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transform-origin:left;transform:scaleX(1)}
+  .timeText{margin-top:6px;text-align:center;font-size:13px;color:#d9d9d9}
 
   /* Arena */
   .arenaWrap.spectate{opacity:.5}
   .arena{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
   .card{
     position:relative;aspect-ratio:3/5;border-radius:16px;user-select:none;cursor:pointer;
-    background:var(--card);border:2px dashed #2a2a2a;
-    transform:scale(.60); transition:transform .28s ease,border-color .2s ease,background .2s ease, box-shadow .2s ease;
+    background:var(--card);
+    transform:scale(.60); transition:transform .28s ease,background .2s ease, box-shadow .2s ease;
     perspective:1000px;
   }
-  .card.red{border-color:var(--red)} .card.blue{border-color:var(--blue)}
   .card.wiggle{animation:wiggle 1.3s ease-in-out infinite}
   @keyframes wiggle {0%{transform:scale(.58)}50%{transform:scale(.62)}100%{transform:scale(.58)}}
   .card.picked{animation:none; transform:scale(1)}
@@ -60,7 +60,6 @@
   .flip .inner{transform:rotateY(180deg)}
   .face{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden}
   .front{
-    border:2px solid #333;
     background:
       radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.05), transparent 40%),
       linear-gradient(160deg, rgba(255,255,255,.04), rgba(255,255,255,0));
@@ -71,11 +70,20 @@
     font-size:44px; font-weight:900; color:#fff;
     display:flex;align-items:center;justify-content:center;
   }
+  /* edges that flip with faces */
+  .edgeF,.edgeB{
+    position:absolute;inset:0;border-radius:16px;border:2px dashed #2a2a2a; pointer-events:none;
+  }
+  .edgeB{transform:rotateY(180deg)}
+  .edge-red {border-color:#e53935}
+  .edge-blue{border-color:#1e88e5}
+  .edge-gold{border-color:#f7c948}
+
   .label{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#dcdcdc;font-size:13px}
 
   .success .back{background:linear-gradient(180deg, rgba(37,192,90,.36), rgba(37,192,90,.16));}
   .trap .back   {background:linear-gradient(180deg, rgba(255,59,48,.36), rgba(255,59,48,.16));}
-  .bonus .front {border-color:var(--gold)}
+  .bonus .front {box-shadow:0 0 0 1px rgba(255,214,80,.3) inset}
   .bonus .back  {background:linear-gradient(180deg, rgba(255,220,120,.28), rgba(255,204,72,.14));}
 
   /* Bet bar (reference layout) */
@@ -99,13 +107,22 @@
   .disabled,.betBox.disabled .betBtn{opacity:.45;pointer-events:none}
 
   .betNote{margin-top:6px;color:var(--muted);font-size:12px;text-align:center}
+
+  /* Cash-out box */
+  .cashBox{background:#0f0f0f;border:1px solid #242424;border-radius:16px;padding:10px;margin-top:10px}
+  .cashMain{display:grid;grid-template-columns:1fr;gap:10px}
+  .bigBtn{width:100%;padding:18px;border-radius:16px;font-weight:900}
+  .bigPrimary{background:var(--accent);color:#07190e;font-size:24px}
+  .bigPrimary .small{display:block;font-size:16px;opacity:.95}
+  .bigHalf{background:var(--accent-dark);color:#07190e;font-size:18px}
+  .cashDisabled{opacity:.45;pointer-events:none}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="brand">
     <div class="name">vorto<span class="x">X</span></div>
-    <span class="badge">v27</span>
+    <span class="badge">v28</span>
   </div>
 
   <!-- Lobby -->
@@ -131,18 +148,25 @@
     </div>
 
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
+    <div class="timeText" id="timeText">Round time left: —</div>
 
     <div class="arenaWrap" id="arenaWrap">
       <div class="arena">
-        <div class="card red wiggle" data-side="left">
+        <!-- LEFT -->
+        <div class="card wiggle" data-side="left">
           <div class="inner">
+            <div class="edgeF edge-red"></div>
+            <div class="edgeB edge-red"></div>
             <div class="face front">TAP TO REVEAL</div>
             <div class="face back"><span class="backText"></span></div>
           </div>
           <div class="label">Red Card</div>
         </div>
-        <div class="card blue wiggle" data-side="right">
+        <!-- RIGHT -->
+        <div class="card wiggle" data-side="right">
           <div class="inner">
+            <div class="edgeF edge-blue"></div>
+            <div class="edgeB edge-blue"></div>
             <div class="face front">TAP TO REVEAL</div>
             <div class="face back"><span class="backText"></span></div>
           </div>
@@ -151,12 +175,12 @@
       </div>
     </div>
 
-    <!-- Bet bar (reference layout) -->
+    <!-- Bet box -->
     <div class="betBox" id="betBox">
       <div class="seg">
         <div class="tabs">
           <button class="on" id="tabBet">Bet</button>
-          <button id="tabAuto">Auto</button>
+          <button id="tabAuto" disabled>Auto</button>
         </div>
         <div class="mini" title="Collapse"></div>
       </div>
@@ -181,12 +205,27 @@
       </div>
       <div class="betNote" id="betNote"></div>
     </div>
+
+    <!-- Cash-out box -->
+    <div class="cashBox" id="cashBox" style="display:none">
+      <div class="cashMain">
+        <button class="bigBtn bigPrimary" id="fullCashBtn">
+          CASH OUT
+          <span class="small" id="fullAmt">0.00 GEL</span>
+        </button>
+        <button class="bigBtn bigHalf" id="halfCashBtn">
+          CASH OUT 50%
+          <span class="small" id="halfAmt">0.00 GEL</span>
+        </button>
+      </div>
+      <div class="betNote" id="cashNote">50% unlocks from Round 4.</div>
+    </div>
   </div>
 </div>
 
 <script>
 (()=>{
-  // ===== Config =====
+  // ====== Config ======
   const BASE_WALLET = 1500;
   const TOTAL_ROUNDS = 6;
   const BONUS_ROUND  = 6;
@@ -203,27 +242,68 @@
   const AVG_MULT = MULTS.reduce((s,m)=>s+m.x*m.w,0);
   const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
 
-  // ===== State =====
+  // ====== State ======
   let wallet = BASE_WALLET;
   let inLobby = true, lobbyLeft = LOBBY_TIME;
   let round = 0, canPick=false, picked=false, chosen=null, board=[null,null], outcome=null;
-  let joinedCurrent=false;       // joined THIS match
-  let prebet=1;                  // stake chosen in bet bar for lobby
-  let pendingNext=0;             // pre-bet carried to next lobby (we now DISABLE in-match betting)
+  let joinedCurrent=false;                // joined THIS match
+  let prebet=1;                           // stake chosen in bet bar (lobby)
+  let queuedNext=0;                       // queued bet for next match (deducted now)
+  let current = 0;                        // current running total if joined
   // timers
   let tLobby=null,tRound=null,tReveal=null,tLock=null,tEnd=null;
 
-  // ===== DOM =====
+  // audio
+  let ac=null,gain=null,musicInt=null,muted=false;
+  function ensureAudio(){
+    if(ac) return;
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    gain=ac.createGain(); gain.gain.value=.5; gain.connect(ac.destination);
+  }
+  function sfx(type){
+    if(!ac||muted) return;
+    const now=ac.currentTime;
+    if(type==='click'){
+      const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.value=600;
+      g.gain.value=.25; g.gain.exponentialRampToValueAtTime(0.0001,now+.08);
+      o.connect(g).connect(gain); o.start(now); o.stop(now+.1);
+    }else if(type==='win'){
+      const o=ac.createOscillator(), g=ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(440,now);
+      o.frequency.exponentialRampToValueAtTime(880,now+.25);
+      g.gain.setValueAtTime(.001,now); g.gain.exponentialRampToValueAtTime(.4,now+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,now+.35);
+      o.connect(g).connect(gain); o.start(now); o.stop(now+.4);
+    }else if(type==='crash'){
+      const b=ac.createBuffer(1,ac.sampleRate*.3,ac.sampleRate), d=b.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.5);
+      const s=ac.createBufferSource(); s.buffer=b; const g=ac.createGain(); g.gain.value=.45; g.gain.exponentialRampToValueAtTime(.0001,now+.3);
+      const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=2200; s.connect(f).connect(g).connect(gain); s.start(now);
+    }else if(type==='coin'){
+      [880,1320,1760].forEach((f,i)=>{const o=ac.createOscillator(), g=ac.createGain(); o.type='square';
+        o.frequency.setValueAtTime(f,now+i*.03); g.gain.setValueAtTime(.18,now+i*.03); g.gain.exponentialRampToValueAtTime(.0001,now+i*.03+.12);
+        o.connect(g).connect(gain); o.start(now+i*.03); o.stop(now+i*.03+.14);});
+    }
+  }
+  function startMusic(){
+    if(musicInt||muted||!ac) return;
+    const seq=[220,220,277,220,330,220,196,220]; let i=0;
+    musicInt=setInterval(()=>{ if(muted||!ac) return;
+      const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=seq[i%seq.length]; g.gain.value=.06;
+      o.connect(g).connect(gain); o.start(); o.stop(ac.currentTime+.18); i++; },220);
+  }
+  function stopMusic(){ if(musicInt){clearInterval(musicInt); musicInt=null;} }
+
+  // ====== DOM ======
   const $=id=>document.getElementById(id);
   const lobbyPanel=$('lobbyPanel'), arenaPanel=$('arenaPanel');
-  const walletTop=$('walletTop'), walletHud=$('walletHud');
-  const cyclePill=$('cyclePill'), roundPill=$('roundPill'), timerFill=$('timerFill'), arenaWrap=$('arenaWrap');
+  const walletTop=$('walletTop'), walletHud=$('walletHud'), cyclePill=$('cyclePill'), roundPill=$('roundPill'), timerFill=$('timerFill'), timeText=$('timeText'), arenaWrap=$('arenaWrap');
   const enterBtn=$('enterBtn');
   const cards=[...document.querySelectorAll('.card')];
   const amountView=$('amountView'), betBtn=$('betBtn'), betBtnAmount=$('betBtnAmount'), betNote=$('betNote'), betBox=$('betBox');
   const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'); document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
+  const cashBox=$('cashBox'), fullCashBtn=$('fullCashBtn'), halfCashBtn=$('halfCashBtn'), fullAmt=$('fullAmt'), halfAmt=$('halfAmt');
 
-  // ===== Helpers =====
+  // ====== Helpers ======
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const show = (el,on=true)=> el.style.display = on?'block':'none';
   function showOnly(panel){ show(lobbyPanel,false); show(arenaPanel,false); show(panel,true); window.scrollTo({top:0,behavior:'instant'}); }
@@ -233,39 +313,51 @@
   function normalOutcome(){ return (Math.random()<TRAP_PROB) ? {type:'trap'} : {type:'mult',x:sampleWeighted()}; }
   function makeBoard(r){ if(r===BONUS_ROUND){ const a=[{type:'mult',x:1},{type:'mult',x:2}]; if(Math.random()<.5) a.reverse(); return a; } return [normalOutcome(), normalOutcome()]; }
 
-  // ===== Bet Bar =====
+  // ====== UI Switchers ======
+  function showBetBox(){ show(betBox,true); show(cashBox,false); }
+  function showCashBox(){ show(betBox,false); show(cashBox,true); }
+
+  function refreshCashBox(){
+    fullAmt.textContent = fmt(current)+' GEL';
+    halfAmt.textContent = fmt(current/2)+' GEL';
+    // 50% from round 4 only
+    const lockHalf = (round < 4) || current<=0;
+    halfCashBtn.classList.toggle('cashDisabled', lockHalf);
+  }
+
   function setBet(v){ prebet=Math.max(1,Math.min(1e6,v)); refreshBetBar(); }
   function refreshBetBar(){
     amountView.textContent = prebet.toFixed(2);
     betBtnAmount.textContent = `${prebet.toFixed(2)} GEL`;
-    const enough = wallet>=prebet;
-    // Bet allowed ONLY in lobby
-    const enabled = inLobby && enough;
-    betBtn.classList.toggle('disabled', !enabled);
-    betBox.classList.toggle('disabled', !enabled);
-    betNote.textContent = inLobby
-      ? (enough? 'Place your bet to join the upcoming match.' : 'You can spectate, but need funds to bet.')
-      : 'Betting is disabled during the match. Wait for the next lobby.';
+    if(inLobby){
+      const enough = wallet>=prebet;
+      betBtn.classList.toggle('disabled', !enough);
+      betBox.classList.toggle('disabled', !enough);
+      betNote.textContent = enough ? 'Place your bet to join the upcoming match.' : 'You can spectate, but need funds to bet.';
+    }else{
+      // in match: you can pre-bet toggle if you are NOT joined
+      const spectating = !joinedCurrent;
+      const queued = queuedNext>0;
+      betBtn.classList.toggle('disabled', false);
+      betBox.classList.toggle('disabled', false);
+      betBtn.textContent = queued ? 'Cancel queued bet' : 'Bet';
+      betBtn.innerHTML = (queued ? 'Cancel queued bet' : 'Bet') + `<span>${prebet.toFixed(2)} GEL${queued?' (queued)':''}</span>`;
+      betNote.textContent = spectating
+        ? (queued ? 'Queued for the next match. Tap again to cancel.' : 'Spectating: queue a bet for the next match.')
+        : 'You are in this match — use cash out.';
+    }
   }
-  minusBtn.onclick=()=> setBet(prebet-1);
-  plusBtn.onclick =()=> setBet(prebet+1);
 
-  betBtn.onclick = ()=>{
-    if (betBtn.classList.contains('disabled')) return;
-    // only lobby: deduct and mark joined
-    wallet -= prebet; updateWallet();
-    pendingNext = prebet;          // carry into next startMatch
-    refreshBetBar();
-    betNote.textContent = `You're in! Stake: ${prebet.toFixed(2)} GEL for the next match.`;
-  };
-
-  // ===== Cards =====
+  // ====== Cards ======
   function resetCards(isBonus){
     cards.forEach(c=>{
-      c.className = 'card ' + (c.dataset.side==='left'?'red':'blue') + ' wiggle';
-      c.querySelector('.inner').classList.remove('flip');
+      c.className='card wiggle';
+      const inner=c.querySelector('.inner'); inner.classList.remove('flip');
+      const left = (c.dataset.side==='left');
+      inner.querySelector('.edgeF').className = 'edgeF '+(isBonus?'edge-gold':(left?'edge-red':'edge-blue'));
+      inner.querySelector('.edgeB').className = 'edgeB '+(isBonus?'edge-gold':(left?'edge-red':'edge-blue'));
       c.querySelector('.backText').textContent='';
-      c.querySelector('.label').textContent = isBonus ? 'Bonus Card' : (c.dataset.side==='left'?'Red Card':'Blue Card');
+      c.querySelector('.label').textContent = isBonus ? 'Bonus Card' : (left?'Red Card':'Blue Card');
       if(isBonus) c.classList.add('bonus');
       c.style.pointerEvents = canPick ? 'auto' : 'none';
     });
@@ -273,7 +365,7 @@
   }
   cards.forEach(c=>c.addEventListener('click', ()=>{ if(!canPick||picked) return; pick(c); }));
   function pick(card){
-    picked=true; chosen=card;
+    picked=true; chosen=card; sfx('click');
     const other = cards.find(x=>x!==card);
     cards.forEach(c=> c.classList.remove('wiggle'));
     card.classList.add('picked'); if(other) other.classList.add('shrunk');
@@ -285,51 +377,64 @@
     const c = board[side];
     if(c.type==='trap' && round!==BONUS_ROUND){
       chosen.classList.add('trap'); chosen.querySelector('.backText').textContent='×';
-      outcome='trap'; joinedCurrent=false; // busted → spectate rest of match
-      arenaWrap.classList.add('spectate');
+      outcome='trap'; sfx('crash');
+      // lose bet, become spectator
+      current = 0; joinedCurrent=false; arenaWrap.classList.add('spectate');
+      // switch back to bet box (pre-bet) since no longer in match
+      showBetBox(); refreshBetBar();
     }else{
-      chosen.classList.add('success'); chosen.querySelector('.backText').textContent=`${c.x}×`;
-      outcome='win';
+      const mult = c.x;
+      chosen.classList.add('success'); chosen.querySelector('.backText').textContent=`${mult}×`;
+      outcome='win'; sfx('win');
+      current = +(current * mult).toFixed(2);
+      refreshCashBox();
     }
-    const otherEl = cards[other];
-    otherEl.classList.add('flip');
+    const otherEl = cards[other]; otherEl.classList.add('flip');
     const oc = board[other]; otherEl.querySelector('.backText').textContent = (round===BONUS_ROUND ? `${oc.x}×` : (oc.type==='trap'?'×':`${oc.x}×`));
   }
 
-  // ===== Cycle =====
+  // ====== Cycle ======
   function startLobby(){
     inLobby=true; lobbyLeft=LOBBY_TIME; round=0;
     cyclePill.textContent = `Join window: ${lobbyLeft.toFixed(1)}s`;
     timerFill.style.transform='scaleX(1)';
-    arenaWrap.classList.toggle('spectate', true); // not in a match yet
-
+    timeText.textContent = 'Round time left: —';
+    arenaWrap.classList.add('spectate'); // not in a match yet
+    showBetBox(); refreshBetBar();
     clearTimers();
+
     tLobby=setInterval(()=>{
       lobbyLeft=Math.max(0,lobbyLeft-0.1);
       cyclePill.textContent = `Join window: ${lobbyLeft.toFixed(1)}s`;
       timerFill.style.transform=`scaleX(${Math.max(0,lobbyLeft/LOBBY_TIME)})`;
       if(lobbyLeft<=0.01){ clearInterval(tLobby); startMatch(); }
     },100);
-
-    refreshBetBar();
   }
 
   function startMatch(){
     inLobby=false;
-    // if user placed a lobby bet, they join this match
-    if(pendingNext>0){ joinedCurrent=true; pendingNext=0; arenaWrap.classList.remove('spectate'); }
-    else{ joinedCurrent=false; arenaWrap.classList.add('spectate'); }
-    refreshBetBar();
+    ensureAudio(); startMusic();
+
+    // apply queued bet if any
+    if(queuedNext>0){
+      current = queuedNext; queuedNext=0;
+      joinedCurrent=true; arenaWrap.classList.remove('spectate');
+      showCashBox(); refreshCashBox();
+    }else{
+      joinedCurrent=false; current=0; arenaWrap.classList.add('spectate');
+      showBetBox(); refreshBetBar();
+    }
     nextRound();
   }
 
   function nextRound(){
-    round++; if(round> TOTAL_ROUNDS){ startLobby(); return; }
+    round++; if(round> TOTAL_ROUNDS){ stopMusic(); startLobby(); return; }
 
     canPick = joinedCurrent; // only joined players can pick
     board = makeBoard(round);
     resetCards(round===BONUS_ROUND);
     roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
+    // if newly joined at match start, current already set to stake; otherwise spectating.
 
     // timers per round
     clearRoundTimers();
@@ -337,12 +442,13 @@
     tReveal = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
     tEnd = setTimeout(()=>{ nextRound(); }, ROUND_TIME*1000);
 
-    // visual round timer
+    // visual round timer + text
     const t0 = performance.now();
     if (tRound) clearInterval(tRound);
     tRound=setInterval(()=>{
       const left=Math.max(0, ROUND_TIME - (performance.now()-t0)/1000);
       timerFill.style.transform=`scaleX(${Math.max(0,left/ROUND_TIME)})`;
+      timeText.textContent = `Round time left: ${left.toFixed(1)}s`;
       if(left<=0.01){ clearInterval(tRound); }
     },100);
   }
@@ -350,14 +456,56 @@
   function clearRoundTimers(){ [tRound,tReveal,tLock,tEnd].forEach(t=>t&&clearInterval(t)); [tReveal,tLock,tEnd]=[tReveal,tLock,tEnd].map(t=>{ if(t) clearTimeout(t); return null; }); tRound=null; }
   function clearTimers(){ if(tLobby){clearInterval(tLobby); tLobby=null;} clearRoundTimers(); }
 
-  // ===== Navigation =====
+  // ====== Cash-out actions ======
+  fullCashBtn.onclick = ()=>{
+    if(!joinedCurrent || current<=0) return;
+    sfx('coin'); wallet += current; updateWallet();
+    // leave match → spectator
+    joinedCurrent=false; current=0; arenaWrap.classList.add('spectate');
+    showBetBox(); refreshBetBar();
+  };
+  halfCashBtn.onclick = ()=>{
+    if(!joinedCurrent || current<=0 || round<4) return;
+    sfx('coin');
+    const half = +(current/2).toFixed(2);
+    wallet += half; current = +(current - half).toFixed(2);
+    updateWallet(); refreshCashBox();
+  };
+
+  // ====== Bet actions ======
+  minusBtn.onclick=()=> setBet(prebet-1);
+  plusBtn.onclick =()=> setBet(prebet+1);
+  betBtn.onclick = ()=>{
+    if(inLobby){
+      // queue for the *immediately upcoming* match
+      if(wallet<prebet){ refreshBetBar(); return; }
+      wallet -= prebet; queuedNext = prebet; updateWallet();
+      betNote.textContent = `You're in! Stake ${prebet.toFixed(2)} GEL for the next match.`;
+      refreshBetBar();
+    }else{
+      // in match: toggle pre-bet for next match (spectators only)
+      if(joinedCurrent) return; // joined players use cash out
+      if(queuedNext>0){
+        // cancel & refund
+        wallet += queuedNext; queuedNext = 0; updateWallet();
+        betNote.textContent = 'Queued bet cancelled and refunded.';
+      }else{
+        if(wallet<prebet){ betNote.textContent='Not enough funds to queue.'; return; }
+        wallet -= prebet; queuedNext = prebet; updateWallet();
+        betNote.textContent = `Queued ${prebet.toFixed(2)} GEL for the next match. Tap again to cancel.`;
+      }
+      refreshBetBar();
+    }
+  };
+
+  // ====== Navigation ======
   function init(){
     wallet = BASE_WALLET; updateWallet(); setBet(1);
     showOnly(lobbyPanel);
   }
   $('enterBtn').onclick = ()=>{ showOnly(arenaPanel); updateWallet(); startLobby(); };
 
-  // ===== Boot =====
+  // ====== Boot ======
   init();
 })();
 </script>
