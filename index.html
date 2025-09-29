@@ -6,27 +6,27 @@
 <title>vortoX — Two-Card Multiplayer Prototype</title>
 <style>
   :root{
-    --bg:#0b0b0b; --text:#f5f5f5; --muted:#9aa0a6;
+    --bg:#0b0b0b; --text:#f5f5f5; --muted:#a0a6ad;
+    --panel:#121212; --edge:#222; --card:#0e0f10;
     --accent:#25c05a; --accent-dark:#1ea14a;
     --red:#e53935; --blue:#1e88e5; --trap:#ff3b30; --gold:#f7c948;
-    --card:#0f0f10; --panel:#121212; --edge:#2a2a2a;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
             font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  .wrap{max-width:880px;margin:0 auto;padding:18px 14px}
+  .wrap{max-width:900px;margin:0 auto;padding:18px 14px}
 
-  /* Header */
+  /* Brand */
   .brand{display:flex;justify-content:center;align-items:center;margin:6px 0 10px}
   .brand .name{font-weight:900;font-size:26px;letter-spacing:.2px}
   .brand .name .x{color:#5cf27e}
   .badge{margin-left:8px;background:#1c1c1c;border:1px solid #2b2b2b;border-radius:999px;padding:2px 8px;font-size:11px;color:#a7d8b4;font-weight:800}
 
-  /* Panel */
-  .panel{background:var(--panel);border:1px solid #1f1f1f;border-radius:14px;padding:12px;margin-bottom:12px}
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:12px;margin-bottom:12px}
   .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
   .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:8px 10px;min-width:130px}
-  .stat .k{display:block;font-size:12px;color:#b9b9b9}
+  .stat .k{display:block;font-size:12px;color:#c7c7c7}
   .stat .v{display:block;font-weight:900;font-size:18px}
 
   .btn{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;font-weight:800}
@@ -34,28 +34,31 @@
   .btn-ghost{background:#1b1b1b;border:1px solid #333;color:#e7e7e7}
   .btn-accent{background:var(--accent);color:#07190e}
 
-  /* Arena */
+  /* HUD */
   .hud{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-  .hud .pill{background:#0f0f0f;border:1px solid #242424;border-radius:999px;padding:6px 10px;font-weight:800}
+  .pill{background:#0f0f0f;border:1px solid #242424;border-radius:999px;padding:6px 10px;font-weight:800}
+
   .timerbar{height:12px;background:#161616;border:1px solid #2b2b2b;border-radius:999px;overflow:hidden}
   .timerfill{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transform-origin:left;transform:scaleX(1)}
 
+  /* Arena */
+  .arenaWrap.spectate{opacity:.5}
   .arena{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
   .card{
     position:relative;aspect-ratio:3/5;border-radius:16px;user-select:none;cursor:pointer;
-    background:var(--card);border:2px dashed var(--edge);
+    background:var(--card);border:2px dashed #2a2a2a;
     transform:scale(.60); transition:transform .28s ease,border-color .2s ease,background .2s ease, box-shadow .2s ease;
-    perspective:1000px; /* for 3D flip */
+    perspective:1000px;
   }
+  .card.red{border-color:var(--red)} .card.blue{border-color:var(--blue)}
   .card.wiggle{animation:wiggle 1.3s ease-in-out infinite}
   @keyframes wiggle {0%{transform:scale(.58)}50%{transform:scale(.62)}100%{transform:scale(.58)}}
   .card.picked{animation:none; transform:scale(1)}
   .card.shrunk{animation:none !important; transform:scale(.60) !important}
 
-  .card .inner{position:absolute;inset:0;border-radius:16px; transform-style:preserve-3d; transition:transform .55s ease}
-  .card.flip .inner{transform:rotateY(180deg)}
-  .face{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;
-        backface-visibility:hidden}
+  .inner{position:absolute;inset:0;border-radius:16px; transform-style:preserve-3d; transition:transform .55s ease}
+  .flip .inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden}
   .front{
     border:2px solid #333;
     background:
@@ -64,54 +67,56 @@
     color:#eaeaea; font-weight:800; letter-spacing:.06em;
   }
   .back{
-    transform:rotateY(180deg); /* keeps numbers readable after container flip */
+    transform:rotateY(180deg);
     font-size:44px; font-weight:900; color:#fff;
     display:flex;align-items:center;justify-content:center;
   }
-
-  .red{--edge:var(--red)} .blue{--edge:var(--blue)}
-  .card.red{border-color:var(--red)} .card.blue{border-color:var(--blue)}
   .label{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#dcdcdc;font-size:13px}
 
-  /* results coloring */
   .success .back{background:linear-gradient(180deg, rgba(37,192,90,.36), rgba(37,192,90,.16));}
   .trap .back   {background:linear-gradient(180deg, rgba(255,59,48,.36), rgba(255,59,48,.16));}
   .bonus .front {border-color:var(--gold)}
-  .bonus .back {background:linear-gradient(180deg, rgba(255,220,120,.28), rgba(255,204,72,.14));}
+  .bonus .back  {background:linear-gradient(180deg, rgba(255,220,120,.28), rgba(255,204,72,.14));}
 
-  /* Bet bar (replaces cash-out) */
-  .betbar{display:grid;grid-template-columns:auto 1fr auto;gap:10px;margin-top:12px}
-  .qty{display:grid;grid-template-columns:38px 1fr 38px;gap:8px;align-items:center}
-  .qty .btn-s{height:40px;border-radius:12px;background:#1a1a1a;border:1px solid #333;color:#eee;font-size:18px;font-weight:900}
-  .qty .display{height:40px;display:flex;align-items:center;justify-content:center;background:#0f0f0f;border:1px solid #2b2b2b;border-radius:12px;font-weight:900;font-size:18px;min-width:84px}
-  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .chip{height:40px;background:#1b1b1b;border:1px solid #333;border-radius:12px;color:#eee;font-weight:800}
-  .bet-btn{background:var(--accent);color:#07190e;border-radius:14px;font-weight:900;font-size:18px;padding:12px 16px}
-  .bet-btn.disabled{opacity:.45;pointer-events:none}
-  .bet-note{margin-top:6px;color:var(--muted);font-size:12px;text-align:center}
+  /* Bet bar (reference layout) */
+  .betBox{background:#0f0f0f;border:1px solid #242424;border-radius:16px;padding:10px;margin-top:10px}
+  .seg{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .seg .tabs{display:flex;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden}
+  .seg .tabs button{background:transparent;color:#cfcfcf;padding:8px 16px;border:0;font-weight:800}
+  .seg .tabs .on{background:#2a2a2a;color:#fff}
+  .seg .mini{width:34px;height:34px;border-radius:10px;background:#1a1a1a;border:1px solid #333}
 
-  .muted{color:#c1c1c1}
-  .center{display:flex;justify-content:center;align-items:center}
+  .betGrid{display:grid;grid-template-columns:260px 1fr;gap:12px}
+  .qty{display:grid;grid-template-columns:46px 1fr 46px;gap:8px;align-items:center}
+  .roundBtn{height:46px;border-radius:24px;background:#1a1a1a;border:1px solid #333;color:#eee;font-size:20px;font-weight:900}
+  .amount{height:46px;display:flex;align-items:center;justify-content:center;background:#0f0f0f;border:1px solid #2b2b2b;border-radius:14px;font-weight:900;font-size:20px}
+  .chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+  .chip{height:42px;background:#1b1b1b;border:1px solid #333;border-radius:12px;color:#eee;font-weight:800}
+
+  .betMain{display:flex;align-items:center}
+  .betBtn{width:100%;height:116px;border-radius:16px;background:var(--accent);color:#07190e;border:0;font-weight:900;font-size:28px;line-height:1.1}
+  .betBtn span{display:block;font-size:20px;margin-top:6px;opacity:.95}
+  .disabled,.betBox.disabled .betBtn{opacity:.45;pointer-events:none}
+
+  .betNote{margin-top:6px;color:var(--muted);font-size:12px;text-align:center}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- Brand -->
   <div class="brand">
     <div class="name">vorto<span class="x">X</span></div>
-    <span class="badge">v26</span>
+    <span class="badge">v27</span>
   </div>
 
-  <!-- Lobby / Controls -->
+  <!-- Lobby -->
   <div class="panel" id="lobbyPanel">
     <div class="row">
       <div class="stat"><span class="k">Wallet</span><span class="v" id="walletTop">—</span></div>
-      <button class="btn btn-ghost" id="apSetupBtn">Auto Play Setup</button>
-      <button class="btn btn-accent" id="enterBtn">Enter Arena</button>
+      <button class="btn btn-ghost" id="enterBtn">Enter Arena</button>
     </div>
     <p class="muted" style="margin:6px 0 0">
-      Global cycle: <strong>5s Lobby</strong> ➜ <strong>6-round Match</strong> ➜ <strong>5s Lobby</strong> ➜ …  
-      Place your bet in the lobby to join the next match. If you miss it, you spectate and can pre-bet for the next one.
+      Cycle: <strong>5s Lobby</strong> → <strong>6-round Match</strong> → <strong>5s Lobby</strong> …  
+      Place your bet during the lobby to join the next match.
     </p>
   </div>
 
@@ -120,53 +125,61 @@
     <div class="hud">
       <div class="row">
         <div class="stat"><span class="k">Wallet</span><span class="v" id="walletHud">—</span></div>
-        <div class="pill" id="cyclePill">Lobby: 5.0s</div>
+        <div class="pill" id="cyclePill">Join window: 5.0s</div>
         <div class="pill" id="roundPill">Round – / 6</div>
       </div>
     </div>
 
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
 
-    <div class="arena">
-      <div class="card red wiggle" data-side="left">
-        <div class="inner">
-          <div class="face front">TAP TO REVEAL</div>
-          <div class="face back"><span class="backText"></span></div>
+    <div class="arenaWrap" id="arenaWrap">
+      <div class="arena">
+        <div class="card red wiggle" data-side="left">
+          <div class="inner">
+            <div class="face front">TAP TO REVEAL</div>
+            <div class="face back"><span class="backText"></span></div>
+          </div>
+          <div class="label">Red Card</div>
         </div>
-        <div class="label">Red Card</div>
-      </div>
-      <div class="card blue wiggle" data-side="right">
-        <div class="inner">
-          <div class="face front">TAP TO REVEAL</div>
-          <div class="face back"><span class="backText"></span></div>
+        <div class="card blue wiggle" data-side="right">
+          <div class="inner">
+            <div class="face front">TAP TO REVEAL</div>
+            <div class="face back"><span class="backText"></span></div>
+          </div>
+          <div class="label">Blue Card</div>
         </div>
-        <div class="label">Blue Card</div>
       </div>
     </div>
 
-    <!-- Bet bar -->
-    <div class="betbar">
-      <div class="qty">
-        <button class="btn-s" id="minusBtn">−</button>
-        <div class="display" id="betDisplay">1.00</div>
-        <button class="btn-s" id="plusBtn">+</button>
+    <!-- Bet bar (reference layout) -->
+    <div class="betBox" id="betBox">
+      <div class="seg">
+        <div class="tabs">
+          <button class="on" id="tabBet">Bet</button>
+          <button id="tabAuto">Auto</button>
+        </div>
+        <div class="mini" title="Collapse"></div>
       </div>
-      <div class="chips">
-        <button class="chip" data-chip="1">1</button>
-        <button class="chip" data-chip="2">2</button>
-        <button class="chip" data-chip="5">5</button>
-        <button class="chip" data-chip="10">10</button>
-      </div>
-      <button class="bet-btn" id="betBtn">Bet<br><span id="betBtnAmt">1.00 GEL</span></button>
-    </div>
-    <div class="bet-note" id="betNote"></div>
-  </div>
 
-  <!-- (Optional) Autoplay setup placeholder -->
-  <div class="panel" id="apPanel" style="display:none">
-    <div class="row">
-      <div class="muted">Auto Play setup placeholder (kept simple for this prototype).</div>
-      <button class="btn btn-ghost" id="apCloseBtn">Close</button>
+      <div class="betGrid">
+        <div>
+          <div class="qty">
+            <button class="roundBtn" id="minusBtn">−</button>
+            <div class="amount" id="amountView">1.00</div>
+            <button class="roundBtn" id="plusBtn">+</button>
+          </div>
+          <div class="chips">
+            <button class="chip" data-chip="1">1</button>
+            <button class="chip" data-chip="2">2</button>
+            <button class="chip" data-chip="5">5</button>
+            <button class="chip" data-chip="10">10</button>
+          </div>
+        </div>
+        <div class="betMain">
+          <button class="betBtn" id="betBtn">Bet<span id="betBtnAmount">1.00 GEL</span></button>
+        </div>
+      </div>
+      <div class="betNote" id="betNote"></div>
     </div>
   </div>
 </div>
@@ -192,200 +205,159 @@
 
   // ===== State =====
   let wallet = BASE_WALLET;
-  let lobbyLeft = LOBBY_TIME;
-  let inLobby = true;
-  let round = 0;
-  let canPick = false, picked=false, chosen=null, board=[null,null], outcome=null;
-  let currentStake = 0;     // stake of the match (if joined)
-  let joinedCurrent = false;// whether user is playing this match
-  let prebet = 1;           // amount set in bet bar
-  let timer=null, lobbyTimer=null, revealTo=null, endTo=null, lockTo=null;
+  let inLobby = true, lobbyLeft = LOBBY_TIME;
+  let round = 0, canPick=false, picked=false, chosen=null, board=[null,null], outcome=null;
+  let joinedCurrent=false;       // joined THIS match
+  let prebet=1;                  // stake chosen in bet bar for lobby
+  let pendingNext=0;             // pre-bet carried to next lobby (we now DISABLE in-match betting)
+  // timers
+  let tLobby=null,tRound=null,tReveal=null,tLock=null,tEnd=null;
 
   // ===== DOM =====
   const $=id=>document.getElementById(id);
-  const lobbyPanel=$('lobbyPanel'), arenaPanel=$('arenaPanel'), apPanel=$('apPanel');
-  const walletTop=$('walletTop'), walletHud=$('walletHud'), cyclePill=$('cyclePill'), roundPill=$('roundPill');
+  const lobbyPanel=$('lobbyPanel'), arenaPanel=$('arenaPanel');
+  const walletTop=$('walletTop'), walletHud=$('walletHud');
+  const cyclePill=$('cyclePill'), roundPill=$('roundPill'), timerFill=$('timerFill'), arenaWrap=$('arenaWrap');
+  const enterBtn=$('enterBtn');
   const cards=[...document.querySelectorAll('.card')];
-  const timerFill=$('timerFill');
-  const enterBtn=$('enterBtn'), apSetupBtn=$('apSetupBtn'), apCloseBtn=$('apCloseBtn');
-  const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'), betDisplay=$('betDisplay'), betBtn=$('betBtn'), betBtnAmt=$('betBtnAmt');
-  const betNote=$('betNote'); document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
+  const amountView=$('amountView'), betBtn=$('betBtn'), betBtnAmount=$('betBtnAmount'), betNote=$('betNote'), betBox=$('betBox');
+  const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'); document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
 
   // ===== Helpers =====
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  function setBet(v){ prebet = Math.max(1, Math.min(100000, v)); refreshBetUI(); }
-  function refreshBetUI(){
-    betDisplay.textContent = prebet.toFixed(2);
-    betBtnAmt.textContent  = `${prebet.toFixed(2)} GEL`;
-    const enough = wallet >= prebet && prebet>0;
-    betBtn.classList.toggle('disabled', !enough || !inLobby);
-    betNote.textContent = inLobby
-      ? (enough? 'Place your bet to join the upcoming match.' : 'You can spectate, but need funds to bet.')
-      : (joinedCurrent ? 'In-match: watch the result. Bet now will apply to the NEXT match.'
-                       : 'Spectating: you can pre-bet for the NEXT match.');
-  }
-  function show(el, on=true){ el.style.display = on?'block':'none'; }
-  function showOnly(panel){
-    show(lobbyPanel, false); show(arenaPanel, false); show(apPanel,false);
-    show(panel,true); window.scrollTo({top:0,behavior:'instant'});
-  }
+  const show = (el,on=true)=> el.style.display = on?'block':'none';
+  function showOnly(panel){ show(lobbyPanel,false); show(arenaPanel,false); show(panel,true); window.scrollTo({top:0,behavior:'instant'}); }
   function updateWallet(){ walletTop.textContent = fmt(wallet)+' GEL'; walletHud.textContent = fmt(wallet)+' GEL'; }
 
   function sampleWeighted(){ const r=Math.random(); let acc=0; for(const m of MULTS){acc+=m.w; if(r<=acc) return m.x;} return MULTS.at(-1).x; }
   function normalOutcome(){ return (Math.random()<TRAP_PROB) ? {type:'trap'} : {type:'mult',x:sampleWeighted()}; }
   function makeBoard(r){ if(r===BONUS_ROUND){ const a=[{type:'mult',x:1},{type:'mult',x:2}]; if(Math.random()<.5) a.reverse(); return a; } return [normalOutcome(), normalOutcome()]; }
 
+  // ===== Bet Bar =====
+  function setBet(v){ prebet=Math.max(1,Math.min(1e6,v)); refreshBetBar(); }
+  function refreshBetBar(){
+    amountView.textContent = prebet.toFixed(2);
+    betBtnAmount.textContent = `${prebet.toFixed(2)} GEL`;
+    const enough = wallet>=prebet;
+    // Bet allowed ONLY in lobby
+    const enabled = inLobby && enough;
+    betBtn.classList.toggle('disabled', !enabled);
+    betBox.classList.toggle('disabled', !enabled);
+    betNote.textContent = inLobby
+      ? (enough? 'Place your bet to join the upcoming match.' : 'You can spectate, but need funds to bet.')
+      : 'Betting is disabled during the match. Wait for the next lobby.';
+  }
+  minusBtn.onclick=()=> setBet(prebet-1);
+  plusBtn.onclick =()=> setBet(prebet+1);
+
+  betBtn.onclick = ()=>{
+    if (betBtn.classList.contains('disabled')) return;
+    // only lobby: deduct and mark joined
+    wallet -= prebet; updateWallet();
+    pendingNext = prebet;          // carry into next startMatch
+    refreshBetBar();
+    betNote.textContent = `You're in! Stake: ${prebet.toFixed(2)} GEL for the next match.`;
+  };
+
+  // ===== Cards =====
   function resetCards(isBonus){
     cards.forEach(c=>{
       c.className = 'card ' + (c.dataset.side==='left'?'red':'blue') + ' wiggle';
-      const inner = c.querySelector('.inner'); inner.style.transform=''; // reset flip
+      c.querySelector('.inner').classList.remove('flip');
       c.querySelector('.backText').textContent='';
       c.querySelector('.label').textContent = isBonus ? 'Bonus Card' : (c.dataset.side==='left'?'Red Card':'Blue Card');
       if(isBonus) c.classList.add('bonus');
+      c.style.pointerEvents = canPick ? 'auto' : 'none';
     });
     chosen=null; picked=false; outcome=null;
   }
-
-  // ===== Cycle =====
-  function startLobby(){
-    inLobby = true; lobbyLeft = LOBBY_TIME; joinedCurrent=false; currentStake=0; round=0;
-    cyclePill.textContent = `Lobby: ${lobbyLeft.toFixed(1)}s`;
-    refreshBetUI(); updateWallet();
-    timerFill.style.transform='scaleX(1)';
-    clearTimers();
-    lobbyTimer = setInterval(()=>{
-      lobbyLeft = Math.max(0, lobbyLeft-0.1);
-      cyclePill.textContent = `Lobby: ${lobbyLeft.toFixed(1)}s`;
-      timerFill.style.transform=`scaleX(${Math.max(0,lobbyLeft/LOBBY_TIME)})`;
-      if(lobbyLeft<=0.01){ clearInterval(lobbyTimer); startMatch(); }
-    },100);
-  }
-
-  function startMatch(){
-    inLobby=false; cyclePill.textContent = 'Match: running';
-    clearTimers();
-    nextRound(); // will iterate until 6
-  }
-
-  function nextRound(){
-    round++; if(round> TOTAL_ROUNDS){ startLobby(); return; }
-    const isBonus = (round===BONUS_ROUND);
-    board = makeBoard(round);
-    resetCards(isBonus);
-    roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
-
-    // spectator still sees the game; only joined players can pick
-    canPick = joinedCurrent;
-    cards.forEach(c => c.style.pointerEvents = canPick ? 'auto' : 'none');
-
-    // lock pick at 3s
-    lockTo = setTimeout(()=>{ canPick=false; }, PICK_WINDOW*1000);
-    // reveal at 3s if picked
-    revealTo = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
-    // end round at 6s
-    endTo = setTimeout(()=>{ if(outcome==='trap'){ /* player busted → keep spectating */ } nextRound(); }, ROUND_TIME*1000);
-
-    // round timer bar
-    const t0 = performance.now();
-    if (timer) clearInterval(timer);
-    timer = setInterval(()=>{
-      const left=Math.max(0, ROUND_TIME - (performance.now()-t0)/1000);
-      timerFill.style.transform=`scaleX(${Math.max(0,left/ROUND_TIME)})`;
-      if(left<=0.01){ clearInterval(timer); }
-    },100);
-  }
-
-  function clearTimers(){
-    [timer, lobbyTimer].forEach(x=>x && clearInterval(x)); timer=null; lobbyTimer=null;
-    [revealTo,endTo,lockTo].forEach(x=>x && clearTimeout(x)); revealTo=endTo=lockTo=null;
-  }
-
-  // ===== Interactions =====
   cards.forEach(c=>c.addEventListener('click', ()=>{ if(!canPick||picked) return; pick(c); }));
-
   function pick(card){
     picked=true; chosen=card;
     const other = cards.find(x=>x!==card);
     cards.forEach(c=> c.classList.remove('wiggle'));
-    card.classList.add('picked'); other.classList.add('shrunk');
+    card.classList.add('picked'); if(other) other.classList.add('shrunk');
   }
-
   function revealChosen(){
     if(!chosen) return;
-    const side = chosen.dataset.side==='left'?0:1, other = 1-side;
-    const inner = chosen.querySelector('.inner'); inner.classList.add('flip');
+    const side = chosen.dataset.side==='left'?0:1, other=1-side;
+    chosen.classList.add('flip');
     const c = board[side];
-    const backT = chosen.querySelector('.backText');
-
     if(c.type==='trap' && round!==BONUS_ROUND){
-      chosen.classList.add('trap');
-      backT.textContent = '×';
-      outcome='trap';
-      // if the player busted, they remain spectator; stake lost
-      currentStake = 0;
-      joinedCurrent = false;
+      chosen.classList.add('trap'); chosen.querySelector('.backText').textContent='×';
+      outcome='trap'; joinedCurrent=false; // busted → spectate rest of match
+      arenaWrap.classList.add('spectate');
     }else{
-      const mult = (round===BONUS_ROUND) ? c.x : c.x;
-      chosen.classList.add('success');
-      backT.textContent = `${mult}×`;
+      chosen.classList.add('success'); chosen.querySelector('.backText').textContent=`${c.x}×`;
       outcome='win';
-      // winnings are virtual in prototype; you can add accounting here if needed
     }
-
-    // show the other card face
-    const oc = board[other];
     const otherEl = cards[other];
-    otherEl.querySelector('.inner').classList.add('flip');
-    otherEl.querySelector('.backText').textContent = (round===BONUS_ROUND ? `${oc.x}×` : (oc.type==='trap'?'×':`${oc.x}×`));
+    otherEl.classList.add('flip');
+    const oc = board[other]; otherEl.querySelector('.backText').textContent = (round===BONUS_ROUND ? `${oc.x}×` : (oc.type==='trap'?'×':`${oc.x}×`));
   }
 
-  // ===== Bet bar behaviour =====
-  minusBtn.onclick=()=> setBet(prebet-1);
-  plusBtn.onclick=()=> setBet(prebet+1);
-  betBtn.onclick = ()=>{
-    if(betBtn.classList.contains('disabled')) return;
-    // Bet placed for the NEXT available entry:
-    if(inLobby){
-      // Join upcoming match
-      wallet -= prebet; currentStake = prebet; joinedCurrent=true;
-      updateWallet(); refreshBetUI();
-      betNote.textContent = `You're in! Your stake for this match: ${prebet.toFixed(2)} GEL.`;
-    }else{
-      // Pre-bet for next match
-      if(wallet>=prebet){
-        wallet -= prebet;
-        // store as pending; for prototype we'll auto-apply at next lobby start
-        pendingNext += prebet;
-        updateWallet(); refreshBetUI();
-        betNote.textContent = `Pre-bet ${prebet.toFixed(2)} GEL for the next match.`;
-      }else{
-        betNote.textContent = `Not enough funds to pre-bet.`;
-      }
-    }
-  };
+  // ===== Cycle =====
+  function startLobby(){
+    inLobby=true; lobbyLeft=LOBBY_TIME; round=0;
+    cyclePill.textContent = `Join window: ${lobbyLeft.toFixed(1)}s`;
+    timerFill.style.transform='scaleX(1)';
+    arenaWrap.classList.toggle('spectate', true); // not in a match yet
 
-  // when a new lobby starts, convert any pre-bet to joined stake
-  let pendingNext = 0;
-  const origStartLobby = startLobby;
-  startLobby = function(){
-    // convert pending → current stake for *this* upcoming match
-    if(pendingNext>0){
-      currentStake = pendingNext; joinedCurrent = true;
-      pendingNext = 0;
-    }
-    origStartLobby();
+    clearTimers();
+    tLobby=setInterval(()=>{
+      lobbyLeft=Math.max(0,lobbyLeft-0.1);
+      cyclePill.textContent = `Join window: ${lobbyLeft.toFixed(1)}s`;
+      timerFill.style.transform=`scaleX(${Math.max(0,lobbyLeft/LOBBY_TIME)})`;
+      if(lobbyLeft<=0.01){ clearInterval(tLobby); startMatch(); }
+    },100);
+
+    refreshBetBar();
   }
 
-  // ===== UI Nav =====
-  $('enterBtn').onclick = ()=>{ showOnly(arenaPanel); refreshBetUI(); updateWallet(); startLobby(); };
-  $('apSetupBtn').onclick = ()=>{ showOnly(apPanel); };
-  $('apCloseBtn').onclick = ()=>{ showOnly(lobbyPanel); };
+  function startMatch(){
+    inLobby=false;
+    // if user placed a lobby bet, they join this match
+    if(pendingNext>0){ joinedCurrent=true; pendingNext=0; arenaWrap.classList.remove('spectate'); }
+    else{ joinedCurrent=false; arenaWrap.classList.add('spectate'); }
+    refreshBetBar();
+    nextRound();
+  }
 
-  // ===== Init =====
+  function nextRound(){
+    round++; if(round> TOTAL_ROUNDS){ startLobby(); return; }
+
+    canPick = joinedCurrent; // only joined players can pick
+    board = makeBoard(round);
+    resetCards(round===BONUS_ROUND);
+    roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
+
+    // timers per round
+    clearRoundTimers();
+    tLock = setTimeout(()=>{ canPick=false; cards.forEach(c=>c.style.pointerEvents='none'); }, PICK_WINDOW*1000);
+    tReveal = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
+    tEnd = setTimeout(()=>{ nextRound(); }, ROUND_TIME*1000);
+
+    // visual round timer
+    const t0 = performance.now();
+    if (tRound) clearInterval(tRound);
+    tRound=setInterval(()=>{
+      const left=Math.max(0, ROUND_TIME - (performance.now()-t0)/1000);
+      timerFill.style.transform=`scaleX(${Math.max(0,left/ROUND_TIME)})`;
+      if(left<=0.01){ clearInterval(tRound); }
+    },100);
+  }
+
+  function clearRoundTimers(){ [tRound,tReveal,tLock,tEnd].forEach(t=>t&&clearInterval(t)); [tReveal,tLock,tEnd]=[tReveal,tLock,tEnd].map(t=>{ if(t) clearTimeout(t); return null; }); tRound=null; }
+  function clearTimers(){ if(tLobby){clearInterval(tLobby); tLobby=null;} clearRoundTimers(); }
+
+  // ===== Navigation =====
   function init(){
     wallet = BASE_WALLET; updateWallet(); setBet(1);
     showOnly(lobbyPanel);
   }
+  $('enterBtn').onclick = ()=>{ showOnly(arenaPanel); updateWallet(); startLobby(); };
+
+  // ===== Boot =====
   init();
 })();
 </script>
