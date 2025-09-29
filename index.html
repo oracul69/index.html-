@@ -111,7 +111,7 @@
   .footer{opacity:.7;font-size:12px;margin-top:10px;text-align:center}
   .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#222;border:1px solid #333;color:#9ad896;font-weight:800;font-size:11px;margin-left:6px}
 
-  /* ==== Setup / autoplay editor (unchanged) ==== */
+  /* ==== Setup / autoplay editor ==== */
   .ap-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;max-width:520px}
   .ap-row{display:grid;grid-template-columns:40px 1fr 1fr;gap:8px;align-items:center}
   .ap-round{font-size:13px;color:#bbb;text-align:center}
@@ -132,7 +132,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v23</span></h1>
+  <h1>Two-Card Multiplier <span class="badge">v24</span></h1>
 
   <!-- ====== Setup / Wallet / Autoplay ====== -->
   <div class="panel" id="setupPanel">
@@ -254,7 +254,11 @@
   let stake = 0, current = 0, round = 0;
   let canPick = false, picked = false, chosenCard = null;
   let board = [null,null], roundOutcome = null;
+
+  // timers
   let timerId = null, revealTimeout=null, lockTimeout=null, roundEndTimeout=null, autoPickTimeout=null;
+
+  // audio
   let ac=null, masterGain=null, musicInt=null, muted=false;
 
   // Autoplay
@@ -271,6 +275,27 @@
   const apSetupBtn = $('apSetupBtn'), apSaveBtn=$('apSaveBtn'), apCancelBtn=$('apCancelBtn'), apClearBtn=$('apClearBtn'), apGrid=$('apGrid');
   const startBtn = $('startBtn'), restartBtn = $('restartBtn'), topUpBtn=$('topUpBtn');
   const timerFill = $('timerFill');
+  const endTitle = $('endTitle'), endBody = $('endBody');
+
+  // ======= Panel + timer helpers =======
+  function clearAllTimers(){
+    if (timerId){ clearInterval(timerId); timerId=null; }
+    [revealTimeout, lockTimeout, roundEndTimeout, autoPickTimeout].forEach(t=>{
+      if (t) clearTimeout(t);
+    });
+    revealTimeout = lockTimeout = roundEndTimeout = autoPickTimeout = null;
+  }
+  function showPanel(which){
+    setupPanel.style.display='none';
+    autoPanel.style.display='none';
+    gamePanel.style.display='none';
+    endPanel.style.display='none';
+    if (which==='setup') setupPanel.style.display='block';
+    else if (which==='auto') autoPanel.style.display='block';
+    else if (which==='game') gamePanel.style.display='block';
+    else if (which==='end')  endPanel.style.display='block';
+    window.scrollTo({top:0, behavior:'instant'});
+  }
 
   // ======= Events =======
   startBtn.addEventListener('click', startGame);
@@ -280,7 +305,7 @@
   muteBtn.addEventListener('click', toggleMute);
   apSetupBtn.addEventListener('click', openAutoSetup);
   apSaveBtn.addEventListener('click', saveAutoSetup);
-  apCancelBtn.addEventListener('click', ()=>{ autoPanel.style.display='none'; setupPanel.style.display='block'; });
+  apCancelBtn.addEventListener('click', ()=> showPanel('setup'));
   apClearBtn.addEventListener('click', ()=>{ apPlan = new Array(TOTAL_ROUNDS).fill(null); renderAutoGrid(); });
   autoToggleBtn.addEventListener('click', ()=>{ apEnabled=false; saveAutoEnabled(false); updateAutoHUD(); });
   topUpBtn.addEventListener('click', ()=>{ wallet += BASE_WALLET; updateWalletUI(); });
@@ -342,7 +367,6 @@
   function stopMusic(){ if (musicInt){ clearInterval(musicInt); musicInt=null; } }
   function toggleMute(){
     muted=!muted;
-    // toggle icon: hide waves when muted, show X
     const wave1 = document.getElementById('spkr-wave1');
     const wave2 = document.getElementById('spkr-wave2');
     const x1 = document.getElementById('spkr-x1');
@@ -354,8 +378,10 @@
 
   // ======= Wallet + Auto UI =======
   function updateWalletUI(){ walletV.textContent = fmt(wallet)+' GEL'; walletV2.textContent = fmt(wallet)+' GEL'; }
+  function updateCashButton(){ cashAmt.textContent = fmt(current) + ' GEL'; }
   function updateAutoHUD(){ autoToggleBtn.textContent = apEnabled ? 'Auto Play: On (tap to turn off)' : 'Auto Play: Off'; }
-  function openAutoSetup(){ setupPanel.style.display='none'; autoPanel.style.display='block'; renderAutoGrid(); }
+
+  function openAutoSetup(){ showPanel('auto'); renderAutoGrid(); }
   function renderAutoGrid(){
     apGrid.innerHTML = '';
     for (let r=1;r<=TOTAL_ROUNDS;r++){
@@ -375,9 +401,9 @@
   function saveAutoSetup(){
     saveAutoPlan();
     apEnabled = true; saveAutoEnabled(true); updateAutoHUD();
-    autoPanel.style.display='none'; setupPanel.style.display='block';
+    showPanel('setup');
   }
-  function restartToSetup(){ setupPanel.style.display='block'; gamePanel.style.display='none'; endPanel.style.display='none'; updateWalletUI(); }
+  function restartToSetup(){ showPanel('setup'); updateWalletUI(); }
 
   // ======= Helpers =======
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -399,13 +425,11 @@
       c.querySelector('.face').textContent='';
     });
     applyBonusStyles(isBonus);
-    // Cash-out locks: R1 full lock; R2 lock until reveal
     if (round === 1 || round === 2) cashBtn.classList.add('btn-disabled');
     else cashBtn.classList.remove('btn-disabled');
 
     roundOutcome = null; chosenCard = null; picked = false;
   }
-  function updateCashButton(){ cashAmt.textContent = fmt(current) + ' GEL'; }
 
   // ======= Game flow =======
   function startGame(){
@@ -416,15 +440,18 @@
     stake = Math.floor(val*100)/100;
     current = stake; wallet -= stake; updateWalletUI(); updateCashButton();
 
-    round=0; setupPanel.style.display='none'; endPanel.style.display='none'; gamePanel.style.display='block';
+    round=0; showPanel('game');
     startRound();
   }
+
   function choose(cardEl){
+    if(!canPick||picked) return;
     picked = true; chosenCard = cardEl; sfx('click');
     const other = cards.find(c => c !== cardEl);
     cards.forEach(c=> c.classList.remove('wiggle'));
     cardEl.classList.add('picked'); if (other) other.classList.add('shrunk');
   }
+
   function revealChosen(){
     if (!chosenCard) return;
     const side = chosenCard.dataset.side==='left' ? 0 : 1, otherSide=1-side;
@@ -447,27 +474,41 @@
     const other = cards[otherSide]; other.classList.add('revealed','shrunk');
     const oc = board[otherSide]; other.querySelector('.face').textContent = (round===1 ? `${oc.x}×` : (oc.type==='trap' ? '×' : `${oc.x}×`));
   }
+
   function cashOut(){
     stopMusic();
-    clearTimeout(lockTimeout); clearTimeout(revealTimeout); clearTimeout(roundEndTimeout); clearTimeout(autoPickTimeout);
+    clearAllTimers();
     wallet += current; updateWalletUI();
-    endGame(false,true);
+    endGame(false, true);
   }
+
   function endGame(lost=false,cashed=false){
-    gamePanel.style.display='none'; endPanel.style.display='block';
-    const t=document.getElementById('endTitle'), b=document.getElementById('endBody');
-    if(lost){ t.textContent='You hit a FALSE card.'; b.innerHTML=`Final total: <strong class="lose">${fmt(current)} GEL</strong> (stake was ${fmt(stake)} GEL). Wallet: ${fmt(wallet)} GEL.`; }
-    else if(cashed){ t.textContent='You cashed out!'; b.innerHTML=`You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL. Wallet: ${fmt(wallet)} GEL.`; }
-    else { wallet += current; updateWalletUI(); t.textContent='Rounds complete!'; b.innerHTML=`Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong>. Wallet: ${fmt(wallet)} GEL.`; }
+    clearAllTimers();
+    stopTimer();
+    showPanel('end');
+    if(lost){
+      endTitle.textContent='You hit a FALSE card.';
+      endBody.innerHTML=`Final total: <strong class="lose">${fmt(current)} GEL</strong> (stake was ${fmt(stake)} GEL). Wallet: ${fmt(wallet)} GEL.`;
+    } else if(cashed){
+      endTitle.textContent='You cashed out!';
+      endBody.innerHTML=`You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL. Wallet: ${fmt(wallet)} GEL.`;
+    } else {
+      wallet += current; updateWalletUI();
+      endTitle.textContent='Rounds complete!';
+      endBody.innerHTML=`Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong>. Wallet: ${fmt(wallet)} GEL.`;
+    }
   }
+
   function startRound(){
+    clearAllTimers();
+    stopTimer();
+
     round++; if (round > TOTAL_ROUNDS){ stopMusic(); endGame(false); return; }
     board = sampleBoard(round);
     resetCards(round===1);
     roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
     canPick = true;
 
-    clearTimeout(lockTimeout);
     lockTimeout = setTimeout(()=>{
       canPick=false;
       if(!picked){
@@ -476,13 +517,10 @@
       }
     }, PICK_WINDOW*1000);
 
-    clearTimeout(revealTimeout);
     revealTimeout = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
 
-    clearTimeout(roundEndTimeout);
     roundEndTimeout = setTimeout(()=>{ if (roundOutcome === 'trap'){ stopMusic(); endGame(true); } else { startRound(); } }, ROUND_TIME*1000);
 
-    clearTimeout(autoPickTimeout);
     if (apEnabled){
       const sel = apPlan[round-1];
       if (sel==='L' || sel==='R'){
@@ -511,533 +549,7 @@
   function init(){
     wallet = BASE_WALLET; // reset every load
     updateWalletUI(); updateAutoHUD(); renderAutoGrid(); updateCashButton();
-  }
-  init();
-
-  // ---- Persist autoplay plan/toggle only ----
-  function saveAutoEnabled(on){ localStorage.setItem('ap_enabled_v1', on?'1':'0'); }
-  function loadAutoEnabled(){ return localStorage.getItem('ap_enabled_v1') === '1'; }
-  function saveAutoPlan(){ localStorage.setItem('ap_plan_v1', JSON.stringify(apPlan)); }
-  function loadAutoPlan(){
-    try { const j = localStorage.getItem('ap_plan_v1'); if (!j) return new Array(TOTAL_ROUNDS).fill(null); const a = JSON.parse(j); if (!Array.isArray(a)) return new Array(TOTAL_ROUNDS).fill(null); return a.slice(0,TOTAL_ROUNDS).concat(new Array(Math.max(0,TOTAL_ROUNDS-a.length)).fill(null)); } catch { return new Array(TOTAL_ROUNDS).fill(null); }
-  }
-})();
-</script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Two-Card Multiplier — Mini Game</title>
-<style>
-  :root{
-    --bg:#0b0b0b; --text:#f5f5f5; --accent:#25c05a;
-    --red:#e53935; --blue:#1e88e5; --muted:#8a8a8a; --trap:#ff3b30;
-    --gold:#f7c948;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
-            font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  .wrap{max-width:760px;margin:0 auto;padding:20px 14px}
-  h1{font-size:20px;font-weight:700;margin:0 0 12px}
-  .panel{background:#121212;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  label{font-size:14px;color:#c9c9c9}
-  input[type=number]{background:#0f0f0f;color:var(--text);border:1px solid #333;border-radius:10px;padding:8px 10px;width:120px;font-size:16px}
-  button{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;font-size:16px;font-weight:700;transition:transform .04s ease,opacity .2s ease}
-  button:active{transform:translateY(1px)}
-  .btn-start{background:var(--accent);color:#07190e}
-  .btn-secondary{background:#1e1e1e;border:1px solid #333;color:#ddd}
-  .btn-disabled{opacity:.5;pointer-events:none}
-
-  .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:8px 10px;min-width:120px}
-  .stat .k{display:block;color:#b9b9b9;font-size:12px}
-  .stat .v{display:block;font-weight:800;font-size:18px;margin-top:1px}
-
-  /* Top HUD: wallet left, audio right */
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-  .icon-btn{background:#1b1b1b;border:1px solid #333;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:center}
-  .icon-btn svg{width:22px;height:22px;display:block;stroke:#fff;stroke-width:2;fill:none;opacity:.95}
-
-  .arena{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 6px}
-
-  .card{
-    position:relative;isolation:isolate;border-radius:16px;aspect-ratio:3/5;
-    display:flex;align-items:center;justify-content:center;
-    background:#0e0e0e;border:2px dashed #2a2a2a;
-    cursor:pointer;user-select:none;
-    transform:scale(.60); /* base size 60% */
-    transition:transform .28s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
-  }
-  .card.revealed{border-style:solid}
-  .card.red{--edge:var(--red);border-color:var(--red)}
-  .card.blue{--edge:var(--blue);border-color:var(--blue)}
-
-  /* BONUS styling (round 1 only) */
-  .card.bonus{
-    --edge: var(--gold);
-    border-color: var(--gold)!important;
-    background:
-      radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.08), transparent 40%),
-      linear-gradient(180deg, rgba(255,220,120,.20), rgba(255,204,72,.10));
-    box-shadow:0 0 0 2px rgba(255,215,0,.25), 0 10px 28px rgba(0,0,0,.45);
-  }
-
-  /* wiggle pulse until pick (0.58 ↔ 0.62) */
-  @keyframes wiggle { 0%{transform:scale(.58)} 50%{transform:scale(.62)} 100%{transform:scale(.58)} }
-  .card.wiggle{animation:wiggle 1.4s ease-in-out infinite}
-
-  /* chosen: smoothly stop wiggle and grow to full size */
-  .card.picked{animation:none; transform:scale(1.00)}
-
-  /* keep the other (unchosen) card at 60% always */
-  .card.shrunk{animation:none !important; transform:scale(.60) !important}
-
-  /* WIN: fully green */
-  .card.success{
-    border-color:var(--accent)!important;
-    background:linear-gradient(180deg, rgba(37,192,90,.32), rgba(37,192,90,.18));
-    box-shadow:0 0 0 3px rgba(37,192,90,.25),0 12px 32px rgba(0,0,0,.45);
-  }
-  /* FAIL: fully red */
-  .card.trap{
-    border-color:var(--trap)!important;
-    background:linear-gradient(180deg, rgba(255,59,48,.32), rgba(255,59,48,.18));
-    box-shadow:0 0 0 3px rgba(255,59,48,.22),0 12px 32px rgba(0,0,0,.45);
-  }
-
-  /* face hidden until reveal */
-  .card .face{font-size:44px;font-weight:900;color:#fff;opacity:0;transition:opacity .15s ease}
-  .card.revealed .face{opacity:1}
-  .card .label{position:absolute;bottom:8px;left:12px;right:12px;text-align:center;font-size:13px;color:#ddd;opacity:.85}
-  .card .cover{
-     position:absolute;inset:0;border-radius:16px;
-     background: radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.04), transparent 40%),
-                 linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-     border:2px solid var(--edge); opacity:.95; display:flex;align-items:center;justify-content:center;
-     font-weight:800;font-size:18px;letter-spacing:.06em; z-index:2;
-  }
-  .card.revealed .cover{display:none}
-
-  .timerbar{height:12px;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden;margin-top:6px}
-  .timerfill{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transform-origin:left;transform:scaleX(1)}
-
-  /* BIG Cash Out button with amount */
-  .btn-cash{
-    background:var(--accent);color:#07190e;width:100%;
-    padding:18px 18px;border-radius:18px;display:flex;flex-direction:column;align-items:center;gap:2px
-  }
-  .btn-cash .amount{font-size:18px;font-weight:900;opacity:.95}
-  .btn-cash .label{font-size:24px;font-weight:900;letter-spacing:.5px}
-
-  /* Row under cash out: round & autoplay */
-  .under-controls{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
-  .round-pill{background:#0f0f0f;border:1px solid #242424;border-radius:999px;padding:8px 12px;font-weight:800}
-  .footer{opacity:.7;font-size:12px;margin-top:10px;text-align:center}
-  .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#222;border:1px solid #333;color:#9ad896;font-weight:800;font-size:11px;margin-left:6px}
-
-  /* ==== Setup / autoplay editor (unchanged) ==== */
-  .ap-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;max-width:520px}
-  .ap-row{display:grid;grid-template-columns:40px 1fr 1fr;gap:8px;align-items:center}
-  .ap-round{font-size:13px;color:#bbb;text-align:center}
-  .ap-cell{
-    border:2px dashed #333;border-radius:10px;padding:14px 8px;text-align:center;
-    user-select:none;cursor:pointer;font-weight:800;
-  }
-  .ap-cell.small{padding:10px 6px}
-  .ap-left{border-color:var(--red)}
-  .ap-right{border-color:var(--blue)}
-  .ap-gold{border-color:var(--gold)}
-  .ap-cell.selected{color:#fff;border-style:solid}
-  .ap-left.selected{background:linear-gradient(180deg, rgba(229,57,53,.28), rgba(229,57,53,.14))}
-  .ap-right.selected{background:linear-gradient(180deg, rgba(30,136,229,.28), rgba(30,136,229,.14))}
-  .ap-gold.selected{background:linear-gradient(180deg, rgba(255,220,120,.30), rgba(255,204,72,.12))}
-  .ap-actions{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Two-Card Multiplier <span class="badge">v23</span></h1>
-
-  <!-- ====== Setup / Wallet / Autoplay ====== -->
-  <div class="panel" id="setupPanel">
-    <div class="row" style="align-items:flex-end">
-      <div>
-        <label for="bet">Enter your stake (GEL):</label><br/>
-        <input id="bet" type="number" min="1" step="1" value="5" />
-      </div>
-      <div class="stat">
-        <span class="k">Wallet</span>
-        <span class="v" id="walletV">—</span>
-      </div>
-      <button class="btn-secondary" id="topUpBtn">+1500 GEL</button>
-      <button class="btn-secondary" id="apSetupBtn">Auto Play Setup</button>
-      <button class="btn-start" id="startBtn">Start Game</button>
-    </div>
-    <p class="small muted">
-      Round 1 is a <strong>Bonus round</strong>: gold cards, no FAIL (1× or 2×).  
-      <strong>Cash Out unlocks after Round 2 reveal.</strong> Rounds last 6s: pick in first 4s, reveal at 5s, end at 6s.
-    </p>
-  </div>
-
-  <!-- ====== Autoplay setup panel ====== -->
-  <div class="panel" id="autoPanel" style="display:none">
-    <h3 style="margin:0 0 10px">Auto Play Setup</h3>
-    <p class="small muted" style="margin-top:0">Tap a rectangle per round to preselect a card. Round 1 is gold (bonus).</p>
-    <div class="ap-grid" id="apGrid"></div>
-    <div class="ap-actions">
-      <button class="btn-secondary" id="apClearBtn">Clear</button>
-      <button class="btn-secondary" id="apCancelBtn">Cancel</button>
-      <button class="btn-start" id="apSaveBtn">Save & Enable</button>
-    </div>
-  </div>
-
-  <!-- ====== Game panel ====== -->
-  <div class="panel" id="gamePanel" style="display:none">
-    <!-- topbar: wallet left, audio right -->
-    <div class="topbar">
-      <div class="stat" style="margin:0">
-        <span class="k">Wallet</span><span class="v" id="walletV2">—</span>
-      </div>
-      <button id="muteBtn" class="icon-btn" title="Toggle sound" aria-label="Toggle sound">
-        <!-- speaker icon (two states toggled with CSS opacity) -->
-        <svg viewBox="0 0 24 24">
-          <path id="spkr-body" d="M11 5 L6 9 H3 v6 h3 l5 4 z"></path>
-          <path id="spkr-wave1" d="M14 9 q3 3 0 6"></path>
-          <path id="spkr-wave2" d="M16 7 q6 5 0 10"></path>
-          <path id="spkr-x1" style="opacity:0" d="M17 7 L21 11"></path>
-          <path id="spkr-x2" style="opacity:0" d="M21 7 L17 11"></path>
-        </svg>
-      </button>
-    </div>
-
-    <div class="arena">
-      <div class="card red wiggle" data-side="left">
-        <div class="cover">TAP TO REVEAL</div>
-        <div class="face"></div>
-        <div class="label">Red Card</div>
-      </div>
-      <div class="card blue wiggle" data-side="right">
-        <div class="cover">TAP TO REVEAL</div>
-        <div class="face"></div>
-        <div class="label">Blue Card</div>
-      </div>
-    </div>
-
-    <!-- countdown only -->
-    <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
-
-    <!-- Big cash out button shows current -->
-    <button id="cashOutBtn" class="btn-cash">
-      <div class="amount" id="cashAmt">0.00 GEL</div>
-      <div class="label">CASH OUT</div>
-    </button>
-
-    <!-- under controls: round + autoplay -->
-    <div class="under-controls">
-      <div class="round-pill" id="roundPill">Round 1 / 6</div>
-      <button id="autoToggleBtn" class="btn-secondary">Auto Play: Off</button>
-    </div>
-
-    <div class="footer">RTP target ~150% per pick. Multipliers up to 10× (rare).</div>
-  </div>
-
-  <div class="panel" id="endPanel" style="display:none">
-    <div class="center">
-      <h2 id="endTitle">Game over</h2>
-      <p id="endBody" class="muted"></p>
-      <button class="btn-start" id="restartBtn">Play Again</button>
-    </div>
-  </div>
-</div>
-
-<script>
-(() => {
-  // ======= Tweakables / odds =======
-  const MULTIPLIERS_WEIGHTED = [
-    {x:1.2, w:0.30},
-    {x:1.5, w:0.22},
-    {x:2.0, w:0.18},
-    {x:3.0, w:0.12},
-    {x:5.0, w:0.08},
-    {x:7.0, w:0.06},
-    {x:10.0,w:0.04}, // rare max
-  ];
-  const RTP_TARGET = 1.50;      // ~150% per pick
-  const ROUND_TIME = 6.0;       // seconds per round
-  const PICK_WINDOW = 4.0;      // can pick only in first 4s
-  const REVEAL_AT   = 5.0;      // reveal chosen at 5s
-  const TOTAL_ROUNDS = 6;
-  const AUTO_PICK_DELAY_MS = 700;
-  const BASE_WALLET = 1500;
-
-  const AVG_MULT = MULTIPLIERS_WEIGHTED.reduce((s,m)=>s+m.x*m.w,0); // ~2.63
-  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
-
-  // ======= State =======
-  let wallet = BASE_WALLET;
-  let stake = 0, current = 0, round = 0;
-  let canPick = false, picked = false, chosenCard = null;
-  let board = [null,null], roundOutcome = null;
-  let timerId = null, revealTimeout=null, lockTimeout=null, roundEndTimeout=null, autoPickTimeout=null;
-  let ac=null, masterGain=null, musicInt=null, muted=false;
-
-  // Autoplay
-  let apPlan = loadAutoPlan();
-  let apEnabled = loadAutoEnabled();
-
-  // ======= DOM =======
-  const $ = id => document.getElementById(id);
-  const setupPanel = $('setupPanel'), gamePanel = $('gamePanel'), endPanel = $('endPanel'), autoPanel = $('autoPanel');
-  const walletV = $('walletV'), walletV2 = $('walletV2'), cashAmt = $('cashAmt'), roundPill = $('roundPill');
-  const betInput = $('bet');
-  const cards = [...document.querySelectorAll('.card')];
-  const cashBtn = $('cashOutBtn'), muteBtn = $('muteBtn'), autoToggleBtn = $('autoToggleBtn');
-  const apSetupBtn = $('apSetupBtn'), apSaveBtn=$('apSaveBtn'), apCancelBtn=$('apCancelBtn'), apClearBtn=$('apClearBtn'), apGrid=$('apGrid');
-  const startBtn = $('startBtn'), restartBtn = $('restartBtn'), topUpBtn=$('topUpBtn');
-  const timerFill = $('timerFill');
-
-  // ======= Events =======
-  startBtn.addEventListener('click', startGame);
-  restartBtn.addEventListener('click', restartToSetup);
-  cashBtn.addEventListener('click', ()=>{ if (cashBtn.classList.contains('btn-disabled')) return; sfx('cash'); cashOut(); });
-  cards.forEach(c => c.addEventListener('click', () => (!canPick||picked)?null:choose(c)));
-  muteBtn.addEventListener('click', toggleMute);
-  apSetupBtn.addEventListener('click', openAutoSetup);
-  apSaveBtn.addEventListener('click', saveAutoSetup);
-  apCancelBtn.addEventListener('click', ()=>{ autoPanel.style.display='none'; setupPanel.style.display='block'; });
-  apClearBtn.addEventListener('click', ()=>{ apPlan = new Array(TOTAL_ROUNDS).fill(null); renderAutoGrid(); });
-  autoToggleBtn.addEventListener('click', ()=>{ apEnabled=false; saveAutoEnabled(false); updateAutoHUD(); });
-  topUpBtn.addEventListener('click', ()=>{ wallet += BASE_WALLET; updateWalletUI(); });
-
-  betInput.addEventListener('input', ()=> {
-    const v = Number(betInput.value||0);
-    if (v > wallet) betInput.value = wallet;
-  });
-
-  // ======= Audio =======
-  function ensureAudio(){
-    if (ac) return;
-    ac = new (window.AudioContext || window.webkitAudioContext)();
-    masterGain = ac.createGain(); masterGain.gain.value = 0.5; masterGain.connect(ac.destination);
-  }
-  function sfx(type){
-    if (!ac || muted) return;
-    const now = ac.currentTime;
-    if (type==='click'){
-      const o = ac.createOscillator(); const g = ac.createGain();
-      o.type='square'; o.frequency.setValueAtTime(600, now);
-      g.gain.setValueAtTime(0.25, now); g.gain.exponentialRampToValueAtTime(0.0001, now+0.08);
-      o.connect(g).connect(masterGain); o.start(now); o.stop(now+0.1);
-    } else if (type==='win'){
-      const o = ac.createOscillator(); const g = ac.createGain();
-      o.type='triangle'; o.frequency.setValueAtTime(440, now);
-      o.frequency.exponentialRampToValueAtTime(880, now+0.25);
-      g.gain.setValueAtTime(0.001, now); g.gain.exponentialRampToValueAtTime(0.4, now+0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now+0.35);
-      o.connect(g).connect(masterGain); o.start(now); o.stop(now+0.4);
-    } else if (type==='crash'){
-      const buffer = ac.createBuffer(1, ac.sampleRate*0.3, ac.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i=0;i<data.length;i++) data[i] = (Math.random()*2-1)*Math.pow(1-i/data.length, 1.5);
-      const s = ac.createBufferSource(); s.buffer = buffer;
-      const g = ac.createGain(); g.gain.setValueAtTime(0.45, now); g.gain.exponentialRampToValueAtTime(0.0001, now+0.3);
-      const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2200;
-      s.connect(lp).connect(g).connect(masterGain); s.start(now);
-    } else if (type==='cash'){
-      const o = ac.createOscillator(); const g = ac.createGain();
-      o.type='sine'; o.frequency.setValueAtTime(880, now);
-      g.gain.setValueAtTime(0.2, now); g.gain.exponentialRampToValueAtTime(0.0001, now+0.12);
-      o.connect(g).connect(masterGain); o.start(now); o.stop(now+0.13);
-    }
-  }
-  function startMusic(){
-    if (musicInt || muted) return;
-    const seq = [220, 220, 277, 220, 330, 220, 196, 220];
-    let i = 0;
-    musicInt = setInterval(()=>{
-      if (muted || !ac) return;
-      const o = ac.createOscillator(); const g = ac.createGain();
-      o.type='sine'; o.frequency.value = seq[i%seq.length];
-      g.gain.value = 0.06; o.connect(g).connect(masterGain);
-      o.start(); o.stop(ac.currentTime+0.18);
-      i++;
-    }, 220);
-  }
-  function stopMusic(){ if (musicInt){ clearInterval(musicInt); musicInt=null; } }
-  function toggleMute(){
-    muted=!muted;
-    // toggle icon: hide waves when muted, show X
-    const wave1 = document.getElementById('spkr-wave1');
-    const wave2 = document.getElementById('spkr-wave2');
-    const x1 = document.getElementById('spkr-x1');
-    const x2 = document.getElementById('spkr-x2');
-    wave1.style.opacity = wave2.style.opacity = muted ? 0 : 1;
-    x1.style.opacity = x2.style.opacity = muted ? 1 : 0;
-    if (muted) stopMusic(); else startMusic();
-  }
-
-  // ======= Wallet + Auto UI =======
-  function updateWalletUI(){ walletV.textContent = fmt(wallet)+' GEL'; walletV2.textContent = fmt(wallet)+' GEL'; }
-  function updateAutoHUD(){ autoToggleBtn.textContent = apEnabled ? 'Auto Play: On (tap to turn off)' : 'Auto Play: Off'; }
-  function openAutoSetup(){ setupPanel.style.display='none'; autoPanel.style.display='block'; renderAutoGrid(); }
-  function renderAutoGrid(){
-    apGrid.innerHTML = '';
-    for (let r=1;r<=TOTAL_ROUNDS;r++){
-      const row = document.createElement('div'); row.className='ap-row';
-      const lab = document.createElement('div'); lab.className='ap-round'; lab.textContent=`R${r}`;
-      const left = document.createElement('div'); const right = document.createElement('div');
-      left.className='ap-cell small ap-left'; right.className='ap-cell small ap-right';
-      left.textContent='Left'; right.textContent='Right';
-      if (r===1){ left.classList.remove('ap-left'); right.classList.remove('ap-right'); left.classList.add('ap-gold'); right.classList.add('ap-gold'); left.textContent='Bonus L'; right.textContent='Bonus R'; }
-      if (apPlan[r-1]==='L') left.classList.add('selected'); if (apPlan[r-1]==='R') right.classList.add('selected');
-      left.onclick=()=>{ apPlan[r-1]='L'; renderAutoGrid(); };
-      right.onclick=()=>{ apPlan[r-1]='R'; renderAutoGrid(); };
-      row.appendChild(lab); row.appendChild(left); row.appendChild(right);
-      apGrid.appendChild(row);
-    }
-  }
-  function saveAutoSetup(){
-    saveAutoPlan();
-    apEnabled = true; saveAutoEnabled(true); updateAutoHUD();
-    autoPanel.style.display='none'; setupPanel.style.display='block';
-  }
-  function restartToSetup(){ setupPanel.style.display='block'; gamePanel.style.display='none'; endPanel.style.display='none'; updateWalletUI(); }
-
-  // ======= Helpers =======
-  const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  function sampleWeighted(){ const r=Math.random(); let acc=0; for(const m of MULTIPLIERS_WEIGHTED){acc+=m.w; if(r<=acc) return m.x;} return MULTIPLIERS_WEIGHTED.at(-1).x; }
-  function sampleCardOutcomeNormal(){ return (Math.random() < TRAP_PROB) ? {type:'trap'} : {type:'mult', x: sampleWeighted()}; }
-  function sampleBoard(roundNum){ if(roundNum===1){const arr=[{type:'mult',x:1},{type:'mult',x:2}]; if(Math.random()<0.5) arr.reverse(); return arr;} return [sampleCardOutcomeNormal(), sampleCardOutcomeNormal()]; }
-  function applyBonusStyles(isBonus){
-    cards.forEach(c=>{
-      c.classList.remove('red','blue');
-      if (isBonus) c.classList.add('bonus'); else c.classList.remove('bonus');
-      c.querySelector('.label').textContent = isBonus ? 'Bonus Card' : (c.dataset.side==='left'?'Red Card':'Blue Card');
-    });
-    if (!isBonus){ cards[0].classList.add('red'); cards[1].classList.add('blue'); }
-  }
-  function resetCards(isBonus){
-    cards.forEach(c=>{
-      c.classList.remove('revealed','success','trap','picked','shrunk');
-      c.classList.add('wiggle');
-      c.querySelector('.face').textContent='';
-    });
-    applyBonusStyles(isBonus);
-    // Cash-out locks: R1 full lock; R2 lock until reveal
-    if (round === 1 || round === 2) cashBtn.classList.add('btn-disabled');
-    else cashBtn.classList.remove('btn-disabled');
-
-    roundOutcome = null; chosenCard = null; picked = false;
-  }
-  function updateCashButton(){ cashAmt.textContent = fmt(current) + ' GEL'; }
-
-  // ======= Game flow =======
-  function startGame(){
-    ensureAudio(); startMusic();
-    const val = Number(betInput.value);
-    if (!Number.isFinite(val)||val<=0){ alert('Enter a valid positive amount.'); return; }
-    if (val > wallet){ alert('Bet exceeds wallet. Lower your stake.'); return; }
-    stake = Math.floor(val*100)/100;
-    current = stake; wallet -= stake; updateWalletUI(); updateCashButton();
-
-    round=0; setupPanel.style.display='none'; endPanel.style.display='none'; gamePanel.style.display='block';
-    startRound();
-  }
-  function choose(cardEl){
-    picked = true; chosenCard = cardEl; sfx('click');
-    const other = cards.find(c => c !== cardEl);
-    cards.forEach(c=> c.classList.remove('wiggle'));
-    cardEl.classList.add('picked'); if (other) other.classList.add('shrunk');
-  }
-  function revealChosen(){
-    if (!chosenCard) return;
-    const side = chosenCard.dataset.side==='left' ? 0 : 1, otherSide=1-side;
-    chosenCard.classList.add('revealed');
-    const content = board[side];
-
-    if (round === 1){
-      chosenCard.querySelector('.face').textContent = `${content.x}×`;
-      current = +(current * content.x).toFixed(2);
-      roundOutcome = 'win'; sfx('win'); updateCashButton();
-    } else if (content.type==='trap'){
-      chosenCard.classList.add('trap'); chosenCard.querySelector('.face').textContent='×';
-      cashBtn.classList.add('btn-disabled'); roundOutcome='trap'; current=0; updateCashButton(); sfx('crash');
-    } else {
-      chosenCard.classList.add('success'); chosenCard.querySelector('.face').textContent=`${content.x}×`;
-      current = +(current * content.x).toFixed(2); roundOutcome='win'; sfx('win'); updateCashButton();
-      if (round === 2) cashBtn.classList.remove('btn-disabled'); // unlock after reveal
-    }
-
-    const other = cards[otherSide]; other.classList.add('revealed','shrunk');
-    const oc = board[otherSide]; other.querySelector('.face').textContent = (round===1 ? `${oc.x}×` : (oc.type==='trap' ? '×' : `${oc.x}×`));
-  }
-  function cashOut(){
-    stopMusic();
-    clearTimeout(lockTimeout); clearTimeout(revealTimeout); clearTimeout(roundEndTimeout); clearTimeout(autoPickTimeout);
-    wallet += current; updateWalletUI();
-    endGame(false,true);
-  }
-  function endGame(lost=false,cashed=false){
-    gamePanel.style.display='none'; endPanel.style.display='block';
-    const t=document.getElementById('endTitle'), b=document.getElementById('endBody');
-    if(lost){ t.textContent='You hit a FALSE card.'; b.innerHTML=`Final total: <strong class="lose">${fmt(current)} GEL</strong> (stake was ${fmt(stake)} GEL). Wallet: ${fmt(wallet)} GEL.`; }
-    else if(cashed){ t.textContent='You cashed out!'; b.innerHTML=`You leave with <strong class="win">${fmt(current)} GEL</strong> from a stake of ${fmt(stake)} GEL. Wallet: ${fmt(wallet)} GEL.`; }
-    else { wallet += current; updateWalletUI(); t.textContent='Rounds complete!'; b.innerHTML=`Final total after ${TOTAL_ROUNDS} rounds: <strong class="win">${fmt(current)} GEL</strong>. Wallet: ${fmt(wallet)} GEL.`; }
-  }
-  function startRound(){
-    round++; if (round > TOTAL_ROUNDS){ stopMusic(); endGame(false); return; }
-    board = sampleBoard(round);
-    resetCards(round===1);
-    roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
-    canPick = true;
-
-    clearTimeout(lockTimeout);
-    lockTimeout = setTimeout(()=>{
-      canPick=false;
-      if(!picked){
-        if (round===1){ current = stake; updateCashButton(); sfx("cash"); cashOut(); }
-        else { sfx("cash"); cashOut(); }
-      }
-    }, PICK_WINDOW*1000);
-
-    clearTimeout(revealTimeout);
-    revealTimeout = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
-
-    clearTimeout(roundEndTimeout);
-    roundEndTimeout = setTimeout(()=>{ if (roundOutcome === 'trap'){ stopMusic(); endGame(true); } else { startRound(); } }, ROUND_TIME*1000);
-
-    clearTimeout(autoPickTimeout);
-    if (apEnabled){
-      const sel = apPlan[round-1];
-      if (sel==='L' || sel==='R'){
-        autoPickTimeout = setTimeout(()=>{ if (!canPick || picked) return; choose(sel==='L'?cards[0]:cards[1]); }, AUTO_PICK_DELAY_MS);
-      }
-    }
-
-    startTimer(ROUND_TIME);
-    updateAutoHUD();
-  }
-
-  // ======= Timer UI (bar only) =======
-  function startTimer(seconds){
-    stopTimer();
-    const t0 = performance.now();
-    function tick(){
-      const left=Math.max(0, seconds - (performance.now()-t0)/1000);
-      timerFill.style.transform=`scaleX(${Math.max(0,left/seconds)})`;
-      if(left<=0.01){ stopTimer(); }
-    }
-    timerId=setInterval(tick,100); tick();
-  }
-  function stopTimer(){ if(timerId){ clearInterval(timerId); timerId=null; } }
-
-  // ======= Init =======
-  function init(){
-    wallet = BASE_WALLET; // reset every load
-    updateWalletUI(); updateAutoHUD(); renderAutoGrid(); updateCashButton();
+    showPanel('setup');
   }
   init();
 
