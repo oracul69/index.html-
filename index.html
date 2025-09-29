@@ -73,7 +73,7 @@
     font-size:44px; font-weight:900; color:#fff;
     display:flex;align-items:center;justify-content:center;
   }
-  /* dashed edges that flip with faces */
+  /* edges that flip with faces */
   .edgeF,.edgeB{
     position:absolute;inset:0;border-radius:16px;border:2px dashed #2a2a2a; pointer-events:none
   }
@@ -100,7 +100,9 @@
   .betGrid{display:grid;grid-template-columns:260px 1fr;gap:12px}
   .qty{display:grid;grid-template-columns:46px 1fr 46px;gap:8px;align-items:center}
   .roundBtn{height:46px;border-radius:24px;background:#1a1a1a;border:1px solid #333;color:#eee;font-size:20px;font-weight:900}
-  .amount{height:46px;display:flex;align-items:center;justify-content:center;background:#0f0f0f;border:1px solid #2b2b2b;border-radius:14px;font-weight:900;font-size:20px}
+  .amount{height:46px;display:flex;align-items:center;justify-content:center;background:#0f0f0f;border:1px solid #2b2b2b;border-radius:14px}
+  .amount input{width:100%;text-align:center;background:transparent;border:0;outline:none;color:#fff;font-weight:900;font-size:20px;-moz-appearance:textfield}
+  .amount input::-webkit-outer-spin-button,.amount input::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
   .chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
   .chip{height:42px;background:#1b1b1b;border:1px solid #333;border-radius:12px;color:#eee;font-weight:800}
 
@@ -119,8 +121,8 @@
   .bigHalf{background:var(--accent-dark);color:#07190e;font-size:18px}
   .cashDisabled{opacity:.45;pointer-events:none}
 
-  /* Pre-match overlay */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:99}
+  /* Pre-match overlay — non-blocking so you can still bet */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:99;pointer-events:none}
   .overlay .num{font-size:18vmin;font-weight:1000;letter-spacing:.04em}
 </style>
 </head>
@@ -128,7 +130,7 @@
 <div class="wrap">
   <div class="brand">
     <div class="name">vorto<span class="x">X</span></div>
-    <span class="badge">v29</span>
+    <span class="badge">v30</span>
   </div>
 
   <!-- Lobby -->
@@ -152,7 +154,6 @@
         <div class="pill" id="roundPill">Round – / 6</div>
       </div>
       <div class="iconBtn" id="musicBtn" title="Toggle music">
-        <!-- speaker icon -->
         <svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 4V6L7 10H3zm13 2a3 3 0 0 0-2.12-2.83v5.66A3 3 0 0 0 16 12zm0-7a7 7 0 0 1 0 14v-2a5 5 0 0 0 0-10V5z"/></svg>
       </div>
     </div>
@@ -162,7 +163,6 @@
 
     <div class="arenaWrap" id="arenaWrap">
       <div class="arena">
-        <!-- LEFT -->
         <div class="card wiggle" data-side="left">
           <div class="inner">
             <div class="edgeF edge-red"></div>
@@ -172,7 +172,6 @@
           </div>
           <div class="label">Red Card</div>
         </div>
-        <!-- RIGHT -->
         <div class="card wiggle" data-side="right">
           <div class="inner">
             <div class="edgeF edge-blue"></div>
@@ -199,7 +198,9 @@
         <div>
           <div class="qty">
             <button class="roundBtn" id="minusBtn">−</button>
-            <div class="amount" id="amountView">1.00</div>
+            <div class="amount" id="amount">
+              <input id="amountInput" type="number" step="0.01" min="1" value="1.00" inputmode="decimal" />
+            </div>
             <button class="roundBtn" id="plusBtn">+</button>
           </div>
           <div class="chips">
@@ -233,7 +234,7 @@
   </div>
 </div>
 
-<!-- Big pre-match countdown overlay -->
+<!-- Big pre-match countdown overlay (non-blocking so you can still bet) -->
 <div class="overlay" id="prepOverlay"><div class="num" id="prepNum">5</div></div>
 
 <script>
@@ -253,58 +254,30 @@
   ];
   const RTP_TARGET = 2.00; // 200%
   const AVG_MULT = MULTS.reduce((s,m)=>s+m.x*m.w,0);
-  // expected = (1-p)*E[m]  =>  target = 2.0
   const TRAP_PROB = Math.min(0.95, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
 
   // ====== State ======
   let wallet = BASE_WALLET;
   let inLobby = true, lobbyLeft = LOBBY_TIME;
-  let round = 0, canPick=false, picked=false, chosen=null, board=[null,null], outcome=null;
-  let joinedCurrent=false;                // joined THIS match
-  let prebet=1;                           // stake chosen in bet bar (lobby)
-  let queuedNext=0;                       // queued bet for next match (deducted now)
-  let current = 0;                        // current running total if joined
+  let round = 0, canPick=false, picked=false, chosen=null, board=[null,null];
+  let joinedCurrent=false;
+  let prebet=1;
+  let queuedNext=0;
+  let current = 0;
+
   // timers
   let tLobby=null,tRound=null,tReveal=null,tLock=null,tEnd=null;
 
-  // audio
+  // audio (same as v29, omitted comments for brevity)
   let ac=null,gain=null,musicInt=null,muted=false, audioPrimed=false;
-  function ensureAudio(){
-    if(ac) return;
-    ac=new (window.AudioContext||window.webkitAudioContext)();
-    gain=ac.createGain(); gain.gain.value=.5; gain.connect(ac.destination);
+  function ensureAudio(){ if(ac) return; ac=new (window.AudioContext||window.webkitAudioContext)(); gain=ac.createGain(); gain.gain.value=.5; gain.connect(ac.destination); }
+  function sfx(type){ if(!ac||muted) return; const now=ac.currentTime;
+    if(type==='click'){const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.value=600; g.gain.value=.25; g.gain.exponentialRampToValueAtTime(0.0001,now+.08); o.connect(g).connect(gain); o.start(now); o.stop(now+.1);}
+    else if(type==='win'){const o=ac.createOscillator(), g=ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(440,now); o.frequency.exponentialRampToValueAtTime(880,now+.25); g.gain.setValueAtTime(.001,now); g.gain.exponentialRampToValueAtTime(.4,now+.02); g.gain.exponentialRampToValueAtTime(.0001,now+.35); o.connect(g).connect(gain); o.start(now); o.stop(now+.4);}
+    else if(type==='crash'){const b=ac.createBuffer(1,ac.sampleRate*.3,ac.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.5); const s=ac.createBufferSource(); s.buffer=b; const g=ac.createGain(); g.gain.value=.45; g.gain.exponentialRampToValueAtTime(.0001,now+.3); const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=2200; s.connect(f).connect(g).connect(gain); s.start(now);}
+    else if(type==='coin'){[880,1320,1760].forEach((f,i)=>{const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.setValueAtTime(f,now+i*.03); g.gain.setValueAtTime(.18,now+i*.03); g.gain.exponentialRampToValueAtTime(.0001,now+i*.03+.12); o.connect(g).connect(gain); o.start(now+i*.03); o.stop(now+i*.03+.14);});}
   }
-  function sfx(type){
-    if(!ac||muted) return;
-    const now=ac.currentTime;
-    if(type==='click'){
-      const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.value=600;
-      g.gain.value=.25; g.gain.exponentialRampToValueAtTime(0.0001,now+.08);
-      o.connect(g).connect(gain); o.start(now); o.stop(now+.1);
-    }else if(type==='win'){
-      const o=ac.createOscillator(), g=ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(440,now);
-      o.frequency.exponentialRampToValueAtTime(880,now+.25);
-      g.gain.setValueAtTime(.001,now); g.gain.exponentialRampToValueAtTime(.4,now+.02);
-      g.gain.exponentialRampToValueAtTime(.0001,now+.35);
-      o.connect(g).connect(gain); o.start(now); o.stop(now+.4);
-    }else if(type==='crash'){
-      const b=ac.createBuffer(1,ac.sampleRate*.3,ac.sampleRate), d=b.getChannelData(0);
-      for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.5);
-      const s=ac.createBufferSource(); s.buffer=b; const g=ac.createGain(); g.gain.value=.45; g.gain.exponentialRampToValueAtTime(.0001,now+.3);
-      const f=ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=2200; s.connect(f).connect(g).connect(gain); s.start(now);
-    }else if(type==='coin'){
-      [880,1320,1760].forEach((f,i)=>{const o=ac.createOscillator(), g=ac.createGain(); o.type='square';
-        o.frequency.setValueAtTime(f,now+i*.03); g.gain.setValueAtTime(.18,now+i*.03); g.gain.exponentialRampToValueAtTime(.0001,now+i*.03+.12);
-        o.connect(g).connect(gain); o.start(now+i*.03); o.stop(now+i*.03+.14);});
-    }
-  }
-  function startMusic(){
-    if(!ac||muted||musicInt) return;
-    const seq=[220,220,277,220,330,220,196,220]; let i=0;
-    musicInt=setInterval(()=>{ if(muted||!ac) return;
-      const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=seq[i%seq.length]; g.gain.value=.06;
-      o.connect(g).connect(gain); o.start(); o.stop(ac.currentTime+.18); i++; },220);
-  }
+  function startMusic(){ if(!ac||muted||musicInt) return; const seq=[220,220,277,220,330,220,196,220]; let i=0; musicInt=setInterval(()=>{ if(muted||!ac) return; const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=seq[i%seq.length]; g.gain.value=.06; o.connect(g).connect(gain); o.start(); o.stop(ac.currentTime+.18); i++; },220);}
   function stopMusic(){ if(musicInt){clearInterval(musicInt); musicInt=null;} }
 
   // ====== DOM ======
@@ -313,7 +286,7 @@
   const walletTop=$('walletTop'), walletHud=$('walletHud'), cyclePill=$('cyclePill'), roundPill=$('roundPill'), timerFill=$('timerFill'), timeText=$('timeText'), arenaWrap=$('arenaWrap');
   const enterBtn=$('enterBtn'), musicBtn=$('musicBtn');
   const cards=[...document.querySelectorAll('.card')];
-  const amountView=$('amountView'), betBtn=$('betBtn'), betBtnAmount=$('betBtnAmount'), betNote=$('betNote'), betBox=$('betBox');
+  const amountInput=$('amountInput'), betBtn=$('betBtn'), betBtnAmount=$('betBtnAmount'), betNote=$('betNote'), betBox=$('betBox');
   const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'); document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
   const cashBox=$('cashBox'), fullCashBtn=$('fullCashBtn'), halfCashBtn=$('halfCashBtn'), fullAmt=$('fullAmt'), halfAmt=$('halfAmt');
   const prepOverlay=$('prepOverlay'), prepNum=$('prepNum');
@@ -323,7 +296,6 @@
   const show = (el,on=true)=> el.style.display = on?'block':'none';
   function showOnly(panel){ show(lobbyPanel,false); show(arenaPanel,false); show(panel,true); window.scrollTo({top:0,behavior:'instant'}); }
   function updateWallet(){ walletTop.textContent = fmt(wallet)+' GEL'; walletHud.textContent = fmt(wallet)+' GEL'; }
-
   function sampleWeighted(){ const r=Math.random(); let acc=0; for(const m of MULTS){acc+=m.w; if(r<=acc) return m.x;} return MULTS.at(-1).x; }
   function normalOutcome(){ return (Math.random()<TRAP_PROB) ? {type:'trap'} : {type:'mult',x:sampleWeighted()}; }
   function makeBoard(r){ if(r===BONUS_ROUND){ const a=[{type:'mult',x:1},{type:'mult',x:2}]; if(Math.random()<.5) a.reverse(); return a; } return [normalOutcome(), normalOutcome()]; }
@@ -338,9 +310,12 @@
     halfCashBtn.classList.toggle('cashDisabled', lockHalf);
   }
 
-  function setBet(v){ prebet=Math.max(1,Math.min(1e6,v)); refreshBetBar(); }
+  function setBet(v){
+    prebet = Math.max(1, Math.min(1e9, Number(v)||1));
+    amountInput.value = prebet.toFixed(2);
+    refreshBetBar();
+  }
   function refreshBetBar(){
-    amountView.textContent = prebet.toFixed(2);
     betBtnAmount.textContent = `${prebet.toFixed(2)} GEL`;
     if(inLobby){
       const enough = wallet>=prebet;
@@ -373,7 +348,7 @@
       if(isBonus) c.classList.add('bonus');
       c.style.pointerEvents = canPick ? 'auto' : 'none';
     });
-    chosen=null; picked=false; outcome=null;
+    chosen=null; picked=false;
   }
   cards.forEach(c=>c.addEventListener('click', ()=>{ if(!canPick||picked) return; pick(c); }));
   function pick(card){
@@ -382,32 +357,43 @@
     cards.forEach(c=> c.classList.remove('wiggle'));
     card.classList.add('picked'); if(other) other.classList.add('shrunk');
   }
+
+  function textFor(o, isBonusRound){
+    if(isBonusRound) return `${o.x}×`;
+    return o.type==='trap' ? '×' : `${o.x}×`;
+  }
+  function revealBoth(){
+    // flip both cards, show board outcomes (spectators see this every round)
+    const left = cards[0], right = cards[1];
+    left.classList.add('flip');  right.classList.add('flip');
+    left.querySelector('.backText').textContent  = textFor(board[0], round===BONUS_ROUND);
+    right.querySelector('.backText').textContent = textFor(board[1], round===BONUS_ROUND);
+  }
   function revealChosen(){
-    if(!chosen) return;
+    if(!chosen){ revealBoth(); return; }
     const side = chosen.dataset.side==='left'?0:1, other=1-side;
     chosen.classList.add('flip');
     const c = board[side];
     if(c.type==='trap' && round!==BONUS_ROUND){
       chosen.classList.add('trap'); chosen.querySelector('.backText').textContent='×';
-      outcome='trap'; sfx('crash');
-      // lose bet, become spectator
+      sfx('crash');
       current = 0; joinedCurrent=false; arenaWrap.classList.add('spectate');
       showBetBox(); refreshBetBar();
     }else{
       const mult = c.x;
       chosen.classList.add('success'); chosen.querySelector('.backText').textContent=`${mult}×`;
-      outcome='win'; sfx('win');
+      sfx('win');
       current = +(current * mult).toFixed(2);
       refreshCashBox();
     }
     const otherEl = cards[other]; otherEl.classList.add('flip');
-    const oc = board[other]; otherEl.querySelector('.backText').textContent = (round===BONUS_ROUND ? `${oc.x}×` : (oc.type==='trap'?'×':`${oc.x}×`));
+    const oc = board[other]; otherEl.querySelector('.backText').textContent = textFor(oc, round===BONUS_ROUND);
   }
 
   // ====== Cycle ======
   function showPrepCountdown(seconds, done){
     prepNum.textContent = Math.ceil(seconds);
-    prepOverlay.style.display='flex';
+    prepOverlay.style.display='flex';       // non-blocking; you can still bet
     let t = seconds;
     const it = setInterval(()=>{
       t -= 1;
@@ -421,13 +407,11 @@
     cyclePill.textContent = `Join window: ${lobbyLeft.toFixed(1)}s`;
     timerFill.style.transform='scaleX(1)';
     timeText.textContent = 'Round time left: —';
-    arenaWrap.classList.add('spectate'); // not in a match yet
+    arenaWrap.classList.add('spectate');
     showBetBox(); refreshBetBar();
     clearTimers();
 
-    // Big overlay countdown (blocks inputs)
-    showPrepCountdown(5, ()=>{}); // visual only; we still run lobby clock below
-
+    showPrepCountdown(5, ()=>{});
     tLobby=setInterval(()=>{
       lobbyLeft=Math.max(0,lobbyLeft-0.1);
       cyclePill.textContent = `Join window: ${lobbyLeft.toFixed(1)}s`;
@@ -438,11 +422,9 @@
 
   function startMatch(){
     inLobby=false;
-    // music always on unless muted (first user gesture primes it)
     ensureAudio(); if(!audioPrimed){ audioPrimed=true; startMusic(); }
     if(!muted) startMusic();
 
-    // apply queued bet if any
     if(queuedNext>0){
       current = queuedNext; queuedNext=0;
       joinedCurrent=true; arenaWrap.classList.remove('spectate');
@@ -457,17 +439,21 @@
   function nextRound(){
     round++; if(round> TOTAL_ROUNDS){ startLobby(); return; }
 
-    canPick = joinedCurrent; // only joined players can pick
+    canPick = joinedCurrent;
     board = makeBoard(round);
     resetCards(round===BONUS_ROUND);
     roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
 
-    // timers per round
     clearRoundTimers();
     tLock = setTimeout(()=>{ canPick=false; cards.forEach(c=>c.style.pointerEvents='none'); }, PICK_WINDOW*1000);
-    tReveal = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
+
+    // Reveal ALWAYS at 3s (even for spectators)
+    tReveal = setTimeout(()=>{
+      if(picked) revealChosen(); else revealBoth();
+    }, REVEAL_AT*1000);
+
     tEnd = setTimeout(()=>{
-      // Auto cash-out if player didn’t pick anything
+      // Auto cash out if joined but didn’t pick
       if(joinedCurrent && !picked){
         wallet += current; current=0; joinedCurrent=false; arenaWrap.classList.add('spectate');
         showBetBox(); refreshBetBar(); updateWallet();
@@ -475,7 +461,7 @@
       nextRound();
     }, ROUND_TIME*1000);
 
-    // visual round timer + text
+    // Round timer text/progress
     const t0 = performance.now();
     if (tRound) clearInterval(tRound);
     tRound=setInterval(()=>{
@@ -493,7 +479,6 @@
   fullCashBtn.onclick = ()=>{
     if(!joinedCurrent || current<=0) return;
     sfx('coin'); wallet += current; current=0; updateWallet();
-    // leave match → spectator
     joinedCurrent=false; arenaWrap.classList.add('spectate');
     showBetBox(); refreshBetBar();
   };
@@ -508,6 +493,8 @@
   // ====== Bet actions ======
   minusBtn.onclick=()=> setBet(prebet-1);
   plusBtn.onclick =()=> setBet(prebet+1);
+  amountInput.addEventListener('input', ()=> setBet(amountInput.value));
+
   betBtn.onclick = ()=>{
     ensureAudio(); if(!audioPrimed){ audioPrimed=true; startMusic(); }
     if(inLobby){
