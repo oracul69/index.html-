@@ -3,211 +3,391 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>vortoX • Two-Card Multiplier</title>
+<title>vortoX — Two-Card Multiplayer Prototype</title>
 <style>
   :root{
     --bg:#0b0b0b; --text:#f5f5f5; --muted:#9aa0a6;
     --accent:#25c05a; --accent-dark:#1ea14a;
-    --red:#e53935; --blue:#1e88e5; --trap:#ff3b30;
-    --gold:#f7c948;
+    --red:#e53935; --blue:#1e88e5; --trap:#ff3b30; --gold:#f7c948;
+    --card:#0f0f10; --panel:#121212; --edge:#2a2a2a;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
             font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
-  .wrap{max-width:820px;margin:0 auto;padding:16px 14px}
+  .wrap{max-width:880px;margin:0 auto;padding:18px 14px}
 
-  /* top brand */
+  /* Header */
   .brand{display:flex;justify-content:center;align-items:center;margin:6px 0 10px}
-  .brand .word{font-size:28px;font-weight:900;letter-spacing:.3px}
-  .brand .word .x{color:var(--accent)}
-  .badge{margin-left:8px;font-size:11px;color:#9ad896;border:1px solid #2a3; padding:2px 8px;border-radius:999px}
+  .brand .name{font-weight:900;font-size:26px;letter-spacing:.2px}
+  .brand .name .x{color:#5cf27e}
+  .badge{margin-left:8px;background:#1c1c1c;border:1px solid #2b2b2b;border-radius:999px;padding:2px 8px;font-size:11px;color:#a7d8b4;font-weight:800}
 
-  h2,h3{margin:0 0 10px}
-  .panel{background:#121212;border:1px solid #222;border-radius:14px;padding:14px;margin-bottom:12px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  /* Panel */
+  .panel{background:var(--panel);border:1px solid #1f1f1f;border-radius:14px;padding:12px;margin-bottom:12px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:8px 10px;min-width:130px}
+  .stat .k{display:block;font-size:12px;color:#b9b9b9}
+  .stat .v{display:block;font-weight:900;font-size:18px}
 
-  .stat{background:#0f0f0f;border:1px solid #242424;border-radius:12px;padding:8px 10px;min-width:120px}
-  .stat .k{display:block;color:#b9b9b9;font-size:12px}
-  .stat .v{display:block;font-weight:800;font-size:18px;margin-top:1px}
-
-  .btn{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;font-size:16px;font-weight:700;
-       transition:transform .04s ease,opacity .2s ease}
+  .btn{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;font-weight:800}
   .btn:active{transform:translateY(1px)}
-  .btn-ghost{background:#1e1e1e;border:1px solid #333;color:#ddd}
-  .btn-primary{background:var(--accent);color:#07190e}
-  .btn-disabled{opacity:.5;pointer-events:none}
+  .btn-ghost{background:#1b1b1b;border:1px solid #333;color:#e7e7e7}
+  .btn-accent{background:var(--accent);color:#07190e}
 
-  /* HUD */
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-  .icon-btn{background:#1b1b1b;border:1px solid #333;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:center}
-  .icon-btn svg{width:22px;height:22px;display:block;stroke:#fff;stroke-width:2;fill:none;opacity:.95}
-
-  /* arena */
-  .arena{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0 6px}
-  .card{
-    --edge:#2a2a2a;
-    position:relative;isolation:isolate;border-radius:16px;aspect-ratio:3/5;
-    display:flex;align-items:center;justify-content:center;
-    background:#0e0e0e;border:2px dashed var(--edge);
-    cursor:pointer;user-select:none;
-    transform:scale(.60); transition:transform .28s ease,box-shadow .15s ease,border-color .2s ease,background .2s ease;
-    perspective:1000px;
-  }
-  .card.revealed{border-style:solid}
-  .card.red{--edge:var(--red)}
-  .card.blue{--edge:var(--blue)}
-  .card.bonus{--edge:var(--gold); background:
-      radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.08), transparent 40%),
-      linear-gradient(180deg, rgba(255,220,120,.20), rgba(255,204,72,.10));
-    box-shadow:0 0 0 2px rgba(255,215,0,.25), 0 10px 28px rgba(0,0,0,.45);
-  }
-  @keyframes wiggle { 0%{transform:scale(.58)} 50%{transform:scale(.62)} 100%{transform:scale(.58)} }
-  .card.wiggle{animation:wiggle 1.4s ease-in-out infinite}
-  .card.picked{animation:none; transform:scale(1)}
-  .card.shrunk{animation:none !important; transform:scale(.60)!important}
-
-  /* flip system: separate faces so text doesn't flip */
-  .faces{position:absolute;inset:0;border-radius:16px;transform-style:preserve-3d;
-         transition:transform .5s ease}
-  .card.flip .faces{transform:rotateY(180deg)}
-  .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:16px;
-        backface-visibility:hidden}
-  .front{ /* cover while hidden */
-     background: radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.04), transparent 40%),
-                 linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-     border:2px solid var(--edge); font-weight:800;font-size:18px;letter-spacing:.06em
-  }
-  .back{ transform:rotateY(180deg); }
-  .mult{font-size:44px;font-weight:900;color:#fff}
-  .label{position:absolute;bottom:8px;left:12px;right:12px;text-align:center;font-size:13px;color:#ddd;opacity:.85}
-
-  .success{border-color:var(--accent)!important;background:linear-gradient(180deg, rgba(37,192,90,.32), rgba(37,192,90,.18))}
-  .trap{border-color:var(--trap)!important;background:linear-gradient(180deg, rgba(255,59,48,.32), rgba(255,59,48,.18))}
-
-  .timerbar{height:12px;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden;margin-top:6px}
+  /* Arena */
+  .hud{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .hud .pill{background:#0f0f0f;border:1px solid #242424;border-radius:999px;padding:6px 10px;font-weight:800}
+  .timerbar{height:12px;background:#161616;border:1px solid #2b2b2b;border-radius:999px;overflow:hidden}
   .timerfill{height:100%;width:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transform-origin:left;transform:scaleX(1)}
 
-  /* cash-buttons replaced by BET widget when spectating/lobby */
-  .buttons{margin-top:10px}
-  .btn-cash{background:var(--accent);color:#07190e;width:100%;padding:22px 18px;border-radius:18px;display:flex;flex-direction:column;align-items:center;gap:2px}
-  .btn-cash .amount{font-size:18px;font-weight:900;opacity:.95}
-  .btn-cash .label{font-size:24px;font-weight:900;letter-spacing:.5px}
-  .btn-half{margin-top:10px;background:var(--accent-dark);color:#07190e;width:100%;padding:18px 18px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:2px}
-  .btn-half .amount{font-size:16px;font-weight:900;opacity:.95}
-  .btn-half .label{font-size:18px;font-weight:900;letter-spacing:.4px}
+  .arena{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+  .card{
+    position:relative;aspect-ratio:3/5;border-radius:16px;user-select:none;cursor:pointer;
+    background:var(--card);border:2px dashed var(--edge);
+    transform:scale(.60); transition:transform .28s ease,border-color .2s ease,background .2s ease, box-shadow .2s ease;
+    perspective:1000px; /* for 3D flip */
+  }
+  .card.wiggle{animation:wiggle 1.3s ease-in-out infinite}
+  @keyframes wiggle {0%{transform:scale(.58)}50%{transform:scale(.62)}100%{transform:scale(.58)}}
+  .card.picked{animation:none; transform:scale(1)}
+  .card.shrunk{animation:none !important; transform:scale(.60) !important}
 
-  .under-controls{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
-  .round-pill{background:#0f0f0f;border:1px solid #242424;border-radius:999px;padding:8px 12px;font-weight:800}
-  .footer{opacity:.7;font-size:12px;margin-top:10px;text-align:center}
+  .card .inner{position:absolute;inset:0;border-radius:16px; transform-style:preserve-3d; transition:transform .55s ease}
+  .card.flip .inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;border-radius:16px;display:flex;align-items:center;justify-content:center;
+        backface-visibility:hidden}
+  .front{
+    border:2px solid #333;
+    background:
+      radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.05), transparent 40%),
+      linear-gradient(160deg, rgba(255,255,255,.04), rgba(255,255,255,0));
+    color:#eaeaea; font-weight:800; letter-spacing:.06em;
+  }
+  .back{
+    transform:rotateY(180deg); /* keeps numbers readable after container flip */
+    font-size:44px; font-weight:900; color:#fff;
+    display:flex;align-items:center;justify-content:center;
+  }
 
-  /* BET widget */
-  .betbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;margin-top:10px}
-  .bet-left{display:grid;grid-template-columns:40px 1fr 40px;gap:8px}
-  .spinner{background:#1b1b1b;border:1px solid #333;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900}
-  .spinner.btn{padding:10px}
-  .amountBox{background:#0f0f0f;border:1px solid #333;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900}
-  .amountBox span{font-size:18px}
-  .quick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
-  .quick .q{background:#1b1b1b;border:1px solid #333;border-radius:12px;padding:10px;text-align:center;font-weight:800}
-  .bet-btn{background:var(--accent);color:#07190e;border-radius:14px;padding:18px 16px;font-weight:900;font-size:20px}
-  .hint{color:var(--muted);font-size:12px;margin-top:6px}
+  .red{--edge:var(--red)} .blue{--edge:var(--blue)}
+  .card.red{border-color:var(--red)} .card.blue{border-color:var(--blue)}
+  .label{position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#dcdcdc;font-size:13px}
 
-  /* lobby overlay */
-  .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
-  .overlay .pill{background:#000a;border:1px solid #333;color:#fff;padding:10px 14px;border-radius:999px;font-weight:900}
+  /* results coloring */
+  .success .back{background:linear-gradient(180deg, rgba(37,192,90,.36), rgba(37,192,90,.16));}
+  .trap .back   {background:linear-gradient(180deg, rgba(255,59,48,.36), rgba(255,59,48,.16));}
+  .bonus .front {border-color:var(--gold)}
+  .bonus .back {background:linear-gradient(180deg, rgba(255,220,120,.28), rgba(255,204,72,.14));}
 
-  .spectate .card{opacity:.5;pointer-events:none}
+  /* Bet bar (replaces cash-out) */
+  .betbar{display:grid;grid-template-columns:auto 1fr auto;gap:10px;margin-top:12px}
+  .qty{display:grid;grid-template-columns:38px 1fr 38px;gap:8px;align-items:center}
+  .qty .btn-s{height:40px;border-radius:12px;background:#1a1a1a;border:1px solid #333;color:#eee;font-size:18px;font-weight:900}
+  .qty .display{height:40px;display:flex;align-items:center;justify-content:center;background:#0f0f0f;border:1px solid #2b2b2b;border-radius:12px;font-weight:900;font-size:18px;min-width:84px}
+  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .chip{height:40px;background:#1b1b1b;border:1px solid #333;border-radius:12px;color:#eee;font-weight:800}
+  .bet-btn{background:var(--accent);color:#07190e;border-radius:14px;font-weight:900;font-size:18px;padding:12px 16px}
+  .bet-btn.disabled{opacity:.45;pointer-events:none}
+  .bet-note{margin-top:6px;color:var(--muted);font-size:12px;text-align:center}
+
+  .muted{color:#c1c1c1}
+  .center{display:flex;justify-content:center;align-items:center}
 </style>
 </head>
 <body>
 <div class="wrap">
-
   <!-- Brand -->
   <div class="brand">
-    <div class="word">vorto<span class="x">X</span></div>
+    <div class="name">vorto<span class="x">X</span></div>
     <span class="badge">v26</span>
   </div>
 
-  <!-- ===== Setup ===== -->
-  <div class="panel" id="setupPanel">
-    <div class="row" style="align-items:flex-end">
-      <div class="stat"><span class="k">Wallet</span><span class="v" id="walletV">—</span></div>
+  <!-- Lobby / Controls -->
+  <div class="panel" id="lobbyPanel">
+    <div class="row">
+      <div class="stat"><span class="k">Wallet</span><span class="v" id="walletTop">—</span></div>
       <button class="btn btn-ghost" id="apSetupBtn">Auto Play Setup</button>
-      <button class="btn btn-primary" id="startBtn">Enter Arena</button>
+      <button class="btn btn-accent" id="enterBtn">Enter Arena</button>
     </div>
-    <p class="hint">Global cycle: <b>5s Lobby</b> → <b>6-round Match</b> → <b>5s Lobby</b> → …  
-      Place your bet in the lobby to join the next match. If you miss it, you spectate and can pre-bet for the next match.</p>
+    <p class="muted" style="margin:6px 0 0">
+      Global cycle: <strong>5s Lobby</strong> ➜ <strong>6-round Match</strong> ➜ <strong>5s Lobby</strong> ➜ …  
+      Place your bet in the lobby to join the next match. If you miss it, you spectate and can pre-bet for the next one.
+    </p>
   </div>
 
-  <!-- ===== Game ===== -->
-  <div class="panel" id="gamePanel" style="display:none">
-    <div class="topbar">
-      <div class="stat" style="margin:0"><span class="k">Wallet</span><span class="v" id="walletV2">—</span></div>
-      <button id="muteBtn" class="icon-btn" title="Toggle sound" aria-label="Toggle sound">
-        <svg viewBox="0 0 24 24">
-          <path id="spkr-body" d="M11 5 L6 9 H3 v6 h3 l5 4 z"></path>
-          <path id="spkr-wave1" d="M14 9 q3 3 0 6"></path>
-          <path id="spkr-wave2" d="M16 7 q6 5 0 10"></path>
-          <path id="spkr-x1" style="opacity:0" d="M17 7 L21 11"></path>
-          <path id="spkr-x2" style="opacity:0" d="M21 7 L17 11"></path>
-        </svg>
-      </button>
-    </div>
-
-    <div class="arena" id="arena">
-      <!-- Left card -->
-      <div class="card red wiggle" data-side="left">
-        <div class="faces">
-          <div class="front">TAP TO REVEAL</div>
-          <div class="back"><div class="mult"></div></div>
-        </div>
-        <div class="label">Red Card</div>
-      </div>
-      <!-- Right card -->
-      <div class="card blue wiggle" data-side="right">
-        <div class="faces">
-          <div class="front">TAP TO REVEAL</div>
-          <div class="back"><div class="mult"></div></div>
-        </div>
-        <div class="label">Blue Card</div>
+  <!-- Arena -->
+  <div class="panel" id="arenaPanel" style="display:none">
+    <div class="hud">
+      <div class="row">
+        <div class="stat"><span class="k">Wallet</span><span class="v" id="walletHud">—</span></div>
+        <div class="pill" id="cyclePill">Lobby: 5.0s</div>
+        <div class="pill" id="roundPill">Round – / 6</div>
       </div>
     </div>
 
     <div class="timerbar"><div class="timerfill" id="timerFill"></div></div>
 
-    <!-- When playing: cash-out buttons -->
-    <div class="buttons" id="cashButtons" style="display:none">
-      <button id="cashOutBtn" class="btn-cash">
-        <div class="amount" id="cashAmt">0.00 GEL</div>
-        <div class="label">CASH OUT</div>
-      </button>
-      <button id="cashHalfBtn" class="btn-half">
-        <div class="amount" id="cashHalfAmt">0.00 GEL</div>
-        <div class="label">CASH OUT 50%</div>
-      </button>
-    </div>
-
-    <!-- When spectating/lobby: BET widget -->
-    <div class="betbar" id="betBar" style="display:none">
-      <div>
-        <div class="bet-left">
-          <button class="btn spinner" id="minusBtn">−</button>
-          <div class="amountBox"><span id="betAmt">1.00</span>&nbsp;GEL</div>
-          <button class="btn spinner" id="plusBtn">+</button>
+    <div class="arena">
+      <div class="card red wiggle" data-side="left">
+        <div class="inner">
+          <div class="face front">TAP TO REVEAL</div>
+          <div class="face back"><span class="backText"></span></div>
         </div>
-        <div class="quick">
-          <div class="q" data-q="1">1</div>
-          <div class="q" data-q="2">2</div>
-          <div class="q" data-q="5">5</div>
-          <div class="q" data-q="10">10</div>
-        </div>
+        <div class="label">Red Card</div>
       </div>
-      <div>
-        <button class="bet-btn" id="betBtn">Bet <span id="betBtnAmt">1.00</span> GEL</button>
-        <div class="hint" id="betHint">Join window opens in lobby or queue for the next match.</div>
+      <div class="card blue wiggle" data-side="right">
+        <div class="inner">
+          <div class="face front">TAP TO REVEAL</div>
+          <div class="face back"><span class="backText"></span></div>
+        </div>
+        <div class="label">Blue Card</div>
       </div>
     </div>
 
-    <div class="under-controls">
-      <div class="round-pill" id="roundPill">Waiting…</div>
-      <button id="autoToggleBtn"
+    <!-- Bet bar -->
+    <div class="betbar">
+      <div class="qty">
+        <button class="btn-s" id="minusBtn">−</button>
+        <div class="display" id="betDisplay">1.00</div>
+        <button class="btn-s" id="plusBtn">+</button>
+      </div>
+      <div class="chips">
+        <button class="chip" data-chip="1">1</button>
+        <button class="chip" data-chip="2">2</button>
+        <button class="chip" data-chip="5">5</button>
+        <button class="chip" data-chip="10">10</button>
+      </div>
+      <button class="bet-btn" id="betBtn">Bet<br><span id="betBtnAmt">1.00 GEL</span></button>
+    </div>
+    <div class="bet-note" id="betNote"></div>
+  </div>
+
+  <!-- (Optional) Autoplay setup placeholder -->
+  <div class="panel" id="apPanel" style="display:none">
+    <div class="row">
+      <div class="muted">Auto Play setup placeholder (kept simple for this prototype).</div>
+      <button class="btn btn-ghost" id="apCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+  // ===== Config =====
+  const BASE_WALLET = 1500;
+  const TOTAL_ROUNDS = 6;
+  const BONUS_ROUND  = 6;
+  const ROUND_TIME = 6.0;
+  const PICK_WINDOW = 3.0;
+  const REVEAL_AT   = 3.0;
+  const LOBBY_TIME  = 5.0;
+
+  const MULTS = [
+    {x:1.2, w:0.30},{x:1.5, w:0.22},{x:2.0, w:0.18},
+    {x:3.0, w:0.12},{x:5.0, w:0.08},{x:7.0, w:0.06},{x:10.0,w:0.04}
+  ];
+  const RTP_TARGET = 1.50;
+  const AVG_MULT = MULTS.reduce((s,m)=>s+m.x*m.w,0);
+  const TRAP_PROB = Math.min(1, Math.max(0, 1 - (RTP_TARGET / AVG_MULT)));
+
+  // ===== State =====
+  let wallet = BASE_WALLET;
+  let lobbyLeft = LOBBY_TIME;
+  let inLobby = true;
+  let round = 0;
+  let canPick = false, picked=false, chosen=null, board=[null,null], outcome=null;
+  let currentStake = 0;     // stake of the match (if joined)
+  let joinedCurrent = false;// whether user is playing this match
+  let prebet = 1;           // amount set in bet bar
+  let timer=null, lobbyTimer=null, revealTo=null, endTo=null, lockTo=null;
+
+  // ===== DOM =====
+  const $=id=>document.getElementById(id);
+  const lobbyPanel=$('lobbyPanel'), arenaPanel=$('arenaPanel'), apPanel=$('apPanel');
+  const walletTop=$('walletTop'), walletHud=$('walletHud'), cyclePill=$('cyclePill'), roundPill=$('roundPill');
+  const cards=[...document.querySelectorAll('.card')];
+  const timerFill=$('timerFill');
+  const enterBtn=$('enterBtn'), apSetupBtn=$('apSetupBtn'), apCloseBtn=$('apCloseBtn');
+  const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'), betDisplay=$('betDisplay'), betBtn=$('betBtn'), betBtnAmt=$('betBtnAmt');
+  const betNote=$('betNote'); document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
+
+  // ===== Helpers =====
+  const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  function setBet(v){ prebet = Math.max(1, Math.min(100000, v)); refreshBetUI(); }
+  function refreshBetUI(){
+    betDisplay.textContent = prebet.toFixed(2);
+    betBtnAmt.textContent  = `${prebet.toFixed(2)} GEL`;
+    const enough = wallet >= prebet && prebet>0;
+    betBtn.classList.toggle('disabled', !enough || !inLobby);
+    betNote.textContent = inLobby
+      ? (enough? 'Place your bet to join the upcoming match.' : 'You can spectate, but need funds to bet.')
+      : (joinedCurrent ? 'In-match: watch the result. Bet now will apply to the NEXT match.'
+                       : 'Spectating: you can pre-bet for the NEXT match.');
+  }
+  function show(el, on=true){ el.style.display = on?'block':'none'; }
+  function showOnly(panel){
+    show(lobbyPanel, false); show(arenaPanel, false); show(apPanel,false);
+    show(panel,true); window.scrollTo({top:0,behavior:'instant'});
+  }
+  function updateWallet(){ walletTop.textContent = fmt(wallet)+' GEL'; walletHud.textContent = fmt(wallet)+' GEL'; }
+
+  function sampleWeighted(){ const r=Math.random(); let acc=0; for(const m of MULTS){acc+=m.w; if(r<=acc) return m.x;} return MULTS.at(-1).x; }
+  function normalOutcome(){ return (Math.random()<TRAP_PROB) ? {type:'trap'} : {type:'mult',x:sampleWeighted()}; }
+  function makeBoard(r){ if(r===BONUS_ROUND){ const a=[{type:'mult',x:1},{type:'mult',x:2}]; if(Math.random()<.5) a.reverse(); return a; } return [normalOutcome(), normalOutcome()]; }
+
+  function resetCards(isBonus){
+    cards.forEach(c=>{
+      c.className = 'card ' + (c.dataset.side==='left'?'red':'blue') + ' wiggle';
+      const inner = c.querySelector('.inner'); inner.style.transform=''; // reset flip
+      c.querySelector('.backText').textContent='';
+      c.querySelector('.label').textContent = isBonus ? 'Bonus Card' : (c.dataset.side==='left'?'Red Card':'Blue Card');
+      if(isBonus) c.classList.add('bonus');
+    });
+    chosen=null; picked=false; outcome=null;
+  }
+
+  // ===== Cycle =====
+  function startLobby(){
+    inLobby = true; lobbyLeft = LOBBY_TIME; joinedCurrent=false; currentStake=0; round=0;
+    cyclePill.textContent = `Lobby: ${lobbyLeft.toFixed(1)}s`;
+    refreshBetUI(); updateWallet();
+    timerFill.style.transform='scaleX(1)';
+    clearTimers();
+    lobbyTimer = setInterval(()=>{
+      lobbyLeft = Math.max(0, lobbyLeft-0.1);
+      cyclePill.textContent = `Lobby: ${lobbyLeft.toFixed(1)}s`;
+      timerFill.style.transform=`scaleX(${Math.max(0,lobbyLeft/LOBBY_TIME)})`;
+      if(lobbyLeft<=0.01){ clearInterval(lobbyTimer); startMatch(); }
+    },100);
+  }
+
+  function startMatch(){
+    inLobby=false; cyclePill.textContent = 'Match: running';
+    clearTimers();
+    nextRound(); // will iterate until 6
+  }
+
+  function nextRound(){
+    round++; if(round> TOTAL_ROUNDS){ startLobby(); return; }
+    const isBonus = (round===BONUS_ROUND);
+    board = makeBoard(round);
+    resetCards(isBonus);
+    roundPill.textContent = `Round ${round} / ${TOTAL_ROUNDS}`;
+
+    // spectator still sees the game; only joined players can pick
+    canPick = joinedCurrent;
+    cards.forEach(c => c.style.pointerEvents = canPick ? 'auto' : 'none');
+
+    // lock pick at 3s
+    lockTo = setTimeout(()=>{ canPick=false; }, PICK_WINDOW*1000);
+    // reveal at 3s if picked
+    revealTo = setTimeout(()=>{ if(picked) revealChosen(); }, REVEAL_AT*1000);
+    // end round at 6s
+    endTo = setTimeout(()=>{ if(outcome==='trap'){ /* player busted → keep spectating */ } nextRound(); }, ROUND_TIME*1000);
+
+    // round timer bar
+    const t0 = performance.now();
+    if (timer) clearInterval(timer);
+    timer = setInterval(()=>{
+      const left=Math.max(0, ROUND_TIME - (performance.now()-t0)/1000);
+      timerFill.style.transform=`scaleX(${Math.max(0,left/ROUND_TIME)})`;
+      if(left<=0.01){ clearInterval(timer); }
+    },100);
+  }
+
+  function clearTimers(){
+    [timer, lobbyTimer].forEach(x=>x && clearInterval(x)); timer=null; lobbyTimer=null;
+    [revealTo,endTo,lockTo].forEach(x=>x && clearTimeout(x)); revealTo=endTo=lockTo=null;
+  }
+
+  // ===== Interactions =====
+  cards.forEach(c=>c.addEventListener('click', ()=>{ if(!canPick||picked) return; pick(c); }));
+
+  function pick(card){
+    picked=true; chosen=card;
+    const other = cards.find(x=>x!==card);
+    cards.forEach(c=> c.classList.remove('wiggle'));
+    card.classList.add('picked'); other.classList.add('shrunk');
+  }
+
+  function revealChosen(){
+    if(!chosen) return;
+    const side = chosen.dataset.side==='left'?0:1, other = 1-side;
+    const inner = chosen.querySelector('.inner'); inner.classList.add('flip');
+    const c = board[side];
+    const backT = chosen.querySelector('.backText');
+
+    if(c.type==='trap' && round!==BONUS_ROUND){
+      chosen.classList.add('trap');
+      backT.textContent = '×';
+      outcome='trap';
+      // if the player busted, they remain spectator; stake lost
+      currentStake = 0;
+      joinedCurrent = false;
+    }else{
+      const mult = (round===BONUS_ROUND) ? c.x : c.x;
+      chosen.classList.add('success');
+      backT.textContent = `${mult}×`;
+      outcome='win';
+      // winnings are virtual in prototype; you can add accounting here if needed
+    }
+
+    // show the other card face
+    const oc = board[other];
+    const otherEl = cards[other];
+    otherEl.querySelector('.inner').classList.add('flip');
+    otherEl.querySelector('.backText').textContent = (round===BONUS_ROUND ? `${oc.x}×` : (oc.type==='trap'?'×':`${oc.x}×`));
+  }
+
+  // ===== Bet bar behaviour =====
+  minusBtn.onclick=()=> setBet(prebet-1);
+  plusBtn.onclick=()=> setBet(prebet+1);
+  betBtn.onclick = ()=>{
+    if(betBtn.classList.contains('disabled')) return;
+    // Bet placed for the NEXT available entry:
+    if(inLobby){
+      // Join upcoming match
+      wallet -= prebet; currentStake = prebet; joinedCurrent=true;
+      updateWallet(); refreshBetUI();
+      betNote.textContent = `You're in! Your stake for this match: ${prebet.toFixed(2)} GEL.`;
+    }else{
+      // Pre-bet for next match
+      if(wallet>=prebet){
+        wallet -= prebet;
+        // store as pending; for prototype we'll auto-apply at next lobby start
+        pendingNext += prebet;
+        updateWallet(); refreshBetUI();
+        betNote.textContent = `Pre-bet ${prebet.toFixed(2)} GEL for the next match.`;
+      }else{
+        betNote.textContent = `Not enough funds to pre-bet.`;
+      }
+    }
+  };
+
+  // when a new lobby starts, convert any pre-bet to joined stake
+  let pendingNext = 0;
+  const origStartLobby = startLobby;
+  startLobby = function(){
+    // convert pending → current stake for *this* upcoming match
+    if(pendingNext>0){
+      currentStake = pendingNext; joinedCurrent = true;
+      pendingNext = 0;
+    }
+    origStartLobby();
+  }
+
+  // ===== UI Nav =====
+  $('enterBtn').onclick = ()=>{ showOnly(arenaPanel); refreshBetUI(); updateWallet(); startLobby(); };
+  $('apSetupBtn').onclick = ()=>{ showOnly(apPanel); };
+  $('apCloseBtn').onclick = ()=>{ showOnly(lobbyPanel); };
+
+  // ===== Init =====
+  function init(){
+    wallet = BASE_WALLET; updateWallet(); setBet(1);
+    showOnly(lobbyPanel);
+  }
+  init();
+})();
+</script>
+</body>
+</html>
