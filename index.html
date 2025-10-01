@@ -30,6 +30,7 @@
   .btn{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;font-weight:800}
   .btn:active{transform:translateY(1px)}
   .btn-ghost{background:#1b1b1b;border:1px solid #333;color:#e7e7e7}
+  .btn-danger{background:#2a1a1a;border:1px solid #552; color:#ffdede}
 
   .hud{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
   .pill{background:#0f0f0f;border:1px solid #242424;border-radius:999px;padding:6px 10px;font-weight:800}
@@ -50,7 +51,7 @@
     transform:scale(.60); transition:transform .28s ease,background .2s ease, box-shadow .2s ease, opacity .2s ease;
     perspective:1000px;
   }
-  .arenaWrap.lobby .card{opacity:0}
+  .arenaWrap.lobby .card{opacity:0} /* hide cards during 5s waiting */
   .card.wiggle{animation:wiggle 1.3s ease-in-out infinite}
   @keyframes wiggle {0%{transform:scale(.58)}50%{transform:scale(.62)}100%{transform:scale(.58)}}
   .card.picked{animation:none; transform:scale(1)}
@@ -78,6 +79,7 @@
   .bonus .back{background:linear-gradient(180deg, rgba(255,220,120,.28), rgba(255,204,72,.14));}
   .bonusGlow{box-shadow:0 0 24px rgba(247,201,72,.55), inset 0 0 12px rgba(247,201,72,.35)}
 
+  /* Bet box */
   .betBox{background:#0f0f0f;border:1px solid #242424;border-radius:16px;padding:10px;margin-top:10px}
   .seg{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
   .seg .tabs{display:flex;background:#1a1a1a;border:1px solid #333;border-radius:999px;overflow:hidden}
@@ -93,20 +95,21 @@
   .chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
   .chip{height:42px;background:#1b1b1b;border:1px solid #333;border-radius:12px;color:#eee;font-weight:800}
 
-  .betMain{display:flex;align-items:center}
+  .betActions{display:flex;gap:10px;align-items:center}
+  .betMain{flex:1;display:flex;align-items:center}
   .betBtn{width:100%;height:116px;border-radius:16px;background:var(--accent);color:#07190e;border:0;font-weight:900;font-size:28px;line-height:1.1}
   .betBtn span{display:block;font-size:20px;margin-top:6px;opacity:.95}
+  .cancelBtn{height:116px;border-radius:16px;padding:0 14px}
   .disabled{opacity:.45;pointer-events:none}
   .betNote{margin-top:6px;color:var(--muted);font-size:12px;text-align:center}
 
+  /* Cash-out single button */
   .cashBox{background:#0f0f0f;border:1px solid #242424;border-radius:16px;padding:10px;margin-top:10px}
-  .cashMain{display:grid;grid-template-columns:1fr;gap:10px}
-  .bigBtn{width:100%;padding:18px;border-radius:16px;font-weight:900}
-  .bigPrimary{background:var(--accent);color:#07190e;font-size:24px}
-  .bigPrimary .small{display:block;font-size:16px;opacity:.95}
-  .bigHalf{background:var(--accent-dark);color:#07190e;font-size:18px}
+  .bigBtn{width:100%;padding:18px;border-radius:16px;font-weight:900;background:var(--accent);color:#07190e;font-size:24px}
+  .bigBtn .small{display:block;font-size:16px;opacity:.95}
   .cashDisabled{opacity:.45;pointer-events:none}
 
+  /* Local overlays */
   .overlayLocal{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     background:linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.55));
@@ -126,20 +129,22 @@
 <div class="wrap">
   <div class="brand">
     <div class="name">vorto<span class="x">X</span></div>
-    <span class="badge">v31b</span>
+    <span class="badge">v31c</span>
   </div>
 
+  <!-- LOBBY -->
   <div class="panel" id="lobbyPanel">
     <div class="row">
       <div class="stat"><span class="k">Wallet</span><span class="v" id="walletTop">1,500.00 GEL</span></div>
       <button class="btn btn-ghost" id="enterBtn">Enter Arena</button>
     </div>
     <p class="muted" style="margin:6px 0 0">
-      Cycle: <strong>5s Lobby</strong> → <strong>6-round Match</strong> → <strong>5s Lobby</strong> …  
+      Cycle: <strong>5s Lobby</strong> → <strong>6-round Match</strong> → <strong>5s Lobby</strong>.  
       Place your bet during the lobby to join the next match.
     </p>
   </div>
 
+  <!-- ARENA -->
   <div class="panel" id="arenaPanel" style="display:none">
     <div class="hud">
       <div class="row" style="gap:8px;align-items:center">
@@ -160,23 +165,30 @@
       <div class="overlayLocal" id="bonusOverlay" style="display:none"><div class="bonusSplash">BONUS ROUND</div></div>
 
       <div class="arena">
+        <!-- LEFT -->
         <div class="card wiggle" data-side="left">
           <div class="inner">
-            <div class="edgeF edge-red"></div><div class="edgeB edge-red"></div>
-            <div class="face front">TAP TO REVEAL</div><div class="face back"><span class="backText"></span></div>
+            <div class="edgeF edge-red"></div>
+            <div class="edgeB edge-red"></div>
+            <div class="face front">TAP TO REVEAL</div>
+            <div class="face back"><span class="backText"></span></div>
           </div>
           <div class="label">Red Card</div>
         </div>
+        <!-- RIGHT -->
         <div class="card wiggle" data-side="right">
           <div class="inner">
-            <div class="edgeF edge-blue"></div><div class="edgeB edge-blue"></div>
-            <div class="face front">TAP TO REVEAL</div><div class="face back"><span class="backText"></span></div>
+            <div class="edgeF edge-blue"></div>
+            <div class="edgeB edge-blue"></div>
+            <div class="face front">TAP TO REVEAL</div>
+            <div class="face back"><span class="backText"></span></div>
           </div>
           <div class="label">Blue Card</div>
         </div>
       </div>
     </div>
 
+    <!-- Bet panel -->
     <div class="betBox" id="betBox">
       <div class="seg">
         <div class="tabs"><button class="on" id="tabBet">Bet</button><button id="tabAuto" disabled>Auto</button></div>
@@ -189,29 +201,34 @@
             <button class="roundBtn" id="plusBtn">+</button>
           </div>
           <div class="chips">
-            <button class="chip" data-chip="1">1</button><button class="chip" data-chip="2">2</button>
-            <button class="chip" data-chip="5">5</button><button class="chip" data-chip="10">10</button>
+            <button class="chip" data-chip="1">1</button>
+            <button class="chip" data-chip="2">2</button>
+            <button class="chip" data-chip="5">5</button>
+            <button class="chip" data-chip="10">10</button>
           </div>
         </div>
-        <div class="betMain"><button class="betBtn" id="betBtn">Bet<span id="betBtnAmount">10.00 GEL</span></button></div>
+        <div class="betActions">
+          <div class="betMain">
+            <button class="betBtn" id="betBtn">Bet<span id="betBtnAmount">10.00 GEL</span></button>
+          </div>
+          <button class="btn btn-danger cancelBtn" id="cancelQueueBtn" style="display:none">Cancel</button>
+        </div>
       </div>
       <div class="betNote" id="betNote"></div>
     </div>
 
+    <!-- Cash-out (single) -->
     <div class="cashBox" id="cashBox" style="display:none">
-      <div class="cashMain">
-        <button class="bigBtn bigPrimary" id="fullCashBtn">CASH OUT <span class="small" id="fullAmt">0.00 GEL</span></button>
-        <button class="bigBtn bigHalf" id="halfCashBtn">CASH OUT 50% <span class="small" id="halfAmt">0.00 GEL</span></button>
-      </div>
-      <div class="betNote" id="cashNote">50% unlocks from Round 4.</div>
+      <button class="bigBtn" id="fullCashBtn">CASH OUT <span class="small" id="fullAmt">0.00 GEL</span></button>
+      <div class="betNote" id="cashNote">Cash Out becomes available after your chosen card is revealed.</div>
     </div>
   </div>
 </div>
 
 <script>
 (()=>{
-  // ---- CONFIG ----
-  const BASE_WALLET = 1500;        // always 1500 on load
+  // ===== CONFIG =====
+  const BASE_WALLET = 1500;
   const TOTAL_ROUNDS = 6, BONUS_ROUND = 6;
   const ROUND_TIME = 6, PICK_WINDOW = 3, REVEAL_AT = 3, LOBBY_TIME = 5;
 
@@ -223,17 +240,17 @@
   const AVG_MULT = MULTS.reduce((s,m)=>s+m.x*m.w,0);
   const TRAP_PROB = Math.min(.95, Math.max(0, 1 - (RTP_TARGET/AVG_MULT)));
 
-  // ---- STATE ----
+  // ===== STATE =====
   let wallet = BASE_WALLET;
   let inLobby = true, lobbyLeft = LOBBY_TIME;
   let round = 0, canPick=false, picked=false, chosen=null, board=[null,null];
   let joinedCurrent=false, prebet=10, queuedNext=0, current=0;
-
+  let canCashOut=false;    // <— NEW: unlocked only after your reveal
   // timers
   let tLobbyInt=null,tRound=null,tReveal=null,tLock=null,tEnd=null;
 
-  // ---- AUDIO (short) ----
-  let ac=null,gain=null, musicInt=null, muted=false, primed=false;
+  // ===== AUDIO (short) =====
+  let ac=null,gain=null,musicInt=null,muted=false,primed=false;
   const ensureAudio=()=>{ if(ac) return; ac=new (window.AudioContext||window.webkitAudioContext)(); gain=ac.createGain(); gain.gain.value=.5; gain.connect(ac.destination); };
   function sfx(type){ if(!ac||muted) return; const now=ac.currentTime;
     if(type==='win'){const o=ac.createOscillator(), g=ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(440,now); o.frequency.exponentialRampToValueAtTime(880,now+.25); g.gain.setValueAtTime(.001,now); g.gain.exponentialRampToValueAtTime(.4,now+.02); g.gain.exponentialRampToValueAtTime(.0001,now+.35); o.connect(g).connect(gain); o.start(now); o.stop(now+.4);}
@@ -241,24 +258,26 @@
     else if(type==='coin'){[880,1320,1760].forEach((f,i)=>{const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.setValueAtTime(f,now+i*.03); g.gain.setValueAtTime(.18,now+i*.03); g.gain.exponentialRampToValueAtTime(.0001,now+i*.03+.12); o.connect(g).connect(gain); o.start(now+i*.03); o.stop(now+i*.03+.14);});}
   }
   const startMusic=()=>{ if(!ac||muted||musicInt) return; const seq=[220,220,277,220,330,220,196,220]; let i=0; musicInt=setInterval(()=>{ if(muted||!ac) return; const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=seq[i%seq.length]; g.gain.value=.06; o.connect(g).connect(gain); o.start(); o.stop(ac.currentTime+.18); i++; },220); };
-  const stopMusic=()=>{ if(musicInt){ clearInterval(musicInt); musicInt=null; } };
+  const stopMusic=()=>{ if(musicInt){clearInterval(musicInt); musicInt=null;} }
 
-  // ---- DOM ----
+  // ===== DOM =====
   const $=id=>document.getElementById(id);
   const lobbyPanel=$('lobbyPanel'), arenaPanel=$('arenaPanel');
   const walletTop=$('walletTop'), walletHud=$('walletHud'), cyclePill=$('cyclePill'), roundPill=$('roundPill'), timerFill=$('timerFill'), timeText=$('timeText'), arenaWrap=$('arenaWrap');
   const enterBtn=$('enterBtn'), musicBtn=$('musicBtn');
   const prepOverlay=$('prepOverlay'), prepNum=$('prepNum'), bonusOverlay=$('bonusOverlay');
+
   const cards=[...document.querySelectorAll('.card')];
   const amountInput=$('amountInput'), betBtn=$('betBtn'), betBtnAmount=$('betBtnAmount'), betNote=$('betNote'), betBox=$('betBox');
-  const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'); document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
-  const cashBox=$('cashBox'), fullCashBtn=$('fullCashBtn'), halfCashBtn=$('halfCashBtn'), fullAmt=$('fullAmt'), halfAmt=$('halfAmt');
+  const minusBtn=$('minusBtn'), plusBtn=$('plusBtn'), cancelQueueBtn=$('cancelQueueBtn');
+  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>setBet(Number(c.dataset.chip)));
+  const cashBox=$('cashBox'), fullCashBtn=$('fullCashBtn'), fullAmt=$('fullAmt');
 
-  // ---- UTIL ----
+  // ===== UTIL =====
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const show = (el,on=true)=> el.style.display = on?'block':'none';
   const showOnly = panel => { show(lobbyPanel,false); show(arenaPanel,false); show(panel,true); window.scrollTo({top:0,behavior:'instant'}); };
-  function updateWallet(){ const t = fmt(wallet)+' GEL'; walletTop.textContent=t; walletHud.textContent=t; }
+  function updateWallet(){ const t=fmt(wallet)+' GEL'; walletTop.textContent=t; walletHud.textContent=t; }
 
   function sampleWeighted(){ const r=Math.random(); let acc=0; for(const m of MULTS){acc+=m.w; if(r<=acc) return m.x;} return MULTS.at(-1).x; }
   const normalOutcome = () => (Math.random()<TRAP_PROB) ? {type:'trap'} : {type:'mult',x:sampleWeighted()};
@@ -266,7 +285,7 @@
 
   const showBetBox=()=>{ show(betBox,true); show(cashBox,false); };
   const showCashBox=()=>{ show(betBox,false); show(cashBox,true); };
-  function refreshCashBox(){ fullAmt.textContent=fmt(current)+' GEL'; halfAmt.textContent=fmt(current/2)+' GEL'; halfCashBtn.classList.toggle('cashDisabled',(round<4)||current<=0); }
+  const refreshCashBtn=()=>{ fullAmt.textContent=fmt(current)+' GEL'; fullCashBtn.classList.toggle('cashDisabled', !canCashOut || current<=0 || !joinedCurrent); };
 
   function setBet(v){ prebet=Math.max(1,Math.min(1e9,Number(v)||1)); amountInput.value=prebet.toFixed(2); betBtnAmount.textContent=`${prebet.toFixed(2)} GEL`; refreshBetHelp(); }
   function refreshBetHelp(){
@@ -274,14 +293,16 @@
       const enough=wallet>=prebet;
       betBtn.classList.toggle('disabled',!enough);
       betBox.classList.toggle('disabled',!enough);
+      cancelQueueBtn.style.display='none';
       betNote.textContent=enough?'Place your bet to join the upcoming match.':'You can spectate, but need funds to bet.';
     }else{
       const queued=queuedNext>0;
       betBtn.classList.remove('disabled');
       betBox.classList.remove('disabled');
-      betBtn.textContent=queued?'Cancel queued bet':'Bet';
-      betBtn.innerHTML=(queued?'Cancel queued bet':'Bet')+`<span>${prebet.toFixed(2)} GEL${queued?' (queued)':''}</span>`;
-      betNote.textContent=!joinedCurrent?(queued?'Queued for the next match. Tap again to cancel.':'Spectating: queue a bet for the next match.'):'You are in this match — use cash out.';
+      betBtn.textContent=queued?'Queued':'Bet';
+      betBtn.innerHTML=(queued?'Queued':'Bet')+`<span>${prebet.toFixed(2)} GEL${queued?' (next match)':''}</span>`;
+      cancelQueueBtn.style.display=queued?'block':'none';
+      betNote.textContent=!joinedCurrent?(queued?'Tap cancel to unqueue.':'Spectating: queue a bet for the next match.'):'You are in this match — use cash out.';
     }
   }
 
@@ -304,16 +325,21 @@
   const textFor=(o,isBonus)=> isBonus?`${o.x}×`:(o.type==='trap'?'×':`${o.x}×`);
   function revealBoth(){ const [L,R]=cards; L.classList.add('flip'); R.classList.add('flip'); L.querySelector('.backText').textContent=textFor(board[0],round===BONUS_ROUND); R.querySelector('.backText').textContent=textFor(board[1],round===BONUS_ROUND); }
   function revealChosen(){
+    // lock cashout until reveal is processed
+    canCashOut=false; refreshCashBtn();
     if(!chosen){ revealBoth(); return; }
     const side=chosen.dataset.side==='left'?0:1, other=1-side;
     chosen.classList.add('flip');
     const c=board[side];
     if(c.type==='trap' && round!==BONUS_ROUND){
       chosen.classList.add('trap'); chosen.querySelector('.backText').textContent='×';
-      sfx('crash'); current=0; joinedCurrent=false; arenaWrap.classList.add('spectate'); showBetBox(); refreshBetHelp();
+      sfx('crash'); current=0; joinedCurrent=false; canCashOut=false; arenaWrap.classList.add('spectate'); showBetBox(); refreshBetHelp(); refreshCashBtn();
     }else{
       const mult=c.x; chosen.classList.add('success'); chosen.querySelector('.backText').textContent=`${mult}×`;
-      sfx('win'); current=+(current*mult).toFixed(2); refreshCashBox();
+      sfx('win'); current=+(current*mult).toFixed(2);
+      canCashOut=true;               // <— enable cash out only AFTER reveal
+      refreshCashBtn();
+      showCashBox();
     }
     const otherEl=cards[other]; otherEl.classList.add('flip'); otherEl.querySelector('.backText').textContent=textFor(board[other],round===BONUS_ROUND);
   }
@@ -325,6 +351,7 @@
   }
   const bonusSplash = onDone => { bonusOverlay.style.display='flex'; setTimeout(()=>{ bonusOverlay.style.display='none'; onDone&&onDone(); },2000); };
 
+  // ===== FLOW =====
   function startLobby(){
     inLobby=true; round=0; lobbyLeft=LOBBY_TIME; updateWallet();
     cyclePill.textContent=`Join window: ${lobbyLeft.toFixed(1)}s`;
@@ -343,23 +370,33 @@
   function startMatch(){
     inLobby=false; updateWallet();
     ensureAudio(); if(!primed){ primed=true; startMusic(); } if(!muted) startMusic();
-    if(queuedNext>0){ current=queuedNext; queuedNext=0; joinedCurrent=true; arenaWrap.classList.remove('spectate'); showCashBox(); refreshCashBox(); }
-    else { current=0; joinedCurrent=false; arenaWrap.classList.add('spectate'); showBetBox(); refreshBetHelp(); }
-    nextRound();
+
+    if(queuedNext>0){ current=queuedNext; queuedNext=0; joinedCurrent=true; arenaWrap.classList.remove('spectate'); showCashBox(); }
+    else { current=0; joinedCurrent=false; arenaWrap.classList.add('spectate'); showBetBox(); }
+
+    canCashOut=false; refreshCashBtn(); nextRound();
   }
 
   function nextRound(){
     round++; if(round>TOTAL_ROUNDS){ startLobby(); return; }
     const beginRound=()=>{
-      canPick=joinedCurrent; board=makeBoard(round); resetCards(round===BONUS_ROUND);
+      canPick=joinedCurrent; canCashOut=false; refreshCashBtn();
+      board=makeBoard(round); resetCards(round===BONUS_ROUND);
       roundPill.textContent=`Round ${round} / ${TOTAL_ROUNDS}`;
       clearRoundTimers();
+
+      // choose window
       tLock=setTimeout(()=>{ canPick=false; cards.forEach(c=>c.style.pointerEvents='none'); },PICK_WINDOW*1000);
+      // reveal timing
       tReveal=setTimeout(()=>{ if(picked) revealChosen(); else revealBoth(); },REVEAL_AT*1000);
+      // end of round
       tEnd=setTimeout(()=>{
-        if(joinedCurrent && !picked){ wallet+=current; current=0; joinedCurrent=false; updateWallet(); arenaWrap.classList.add('spectate'); showBetBox(); refreshBetHelp(); }
+        if(joinedCurrent && !picked){ // auto cash out with whatever value (unchanged rule)
+          wallet+=current; current=0; updateWallet(); joinedCurrent=false; arenaWrap.classList.add('spectate'); showBetBox();
+        }
         nextRound();
       },ROUND_TIME*1000);
+
       const t0=performance.now(); clearInterval(tRound);
       tRound=setInterval(()=>{ const left=Math.max(0,ROUND_TIME-(performance.now()-t0)/1000); timerFill.style.transform=`scaleX(${Math.max(0,left/ROUND_TIME)})`; timeText.textContent=`Round time left: ${left.toFixed(1)}s`; if(left<=0.01) clearInterval(tRound); },100);
     };
@@ -367,38 +404,45 @@
   }
   function clearRoundTimers(){ [tRound,tReveal,tLock,tEnd].forEach(t=>t&&clearInterval(t)); [tReveal,tLock,tEnd].forEach(t=>t&&clearTimeout(t)); tRound=tReveal=tLock=tEnd=null; }
 
-  // Cash out
-  fullCashBtn.onclick=()=>{ if(!joinedCurrent||current<=0) return; sfx('coin'); wallet+=current; current=0; updateWallet(); joinedCurrent=false; arenaWrap.classList.add('spectate'); showBetBox(); refreshBetHelp(); };
-  halfCashBtn.onclick=()=>{ if(!joinedCurrent||current<=0||round<4) return; sfx('coin'); const half=+(current/2).toFixed(2); wallet+=half; current=+(current-half).toFixed(2); updateWallet(); refreshCashBox(); };
+  // ===== CASH OUT (single) =====
+  fullCashBtn.onclick=()=>{ if(!joinedCurrent||!canCashOut||current<=0) return; sfx('coin'); wallet+=current; current=0; updateWallet(); joinedCurrent=false; canCashOut=false; arenaWrap.classList.add('spectate'); showBetBox(); refreshBetHelp(); refreshCashBtn(); };
 
-  // Betting
+  // ===== BETTING =====
+  const queueBet = ()=>{
+    if(wallet<prebet) { betNote.textContent='Not enough funds.'; return; }
+    wallet-=prebet; queuedNext=prebet; updateWallet();
+    // instant UI feedback + show Cancel
+    refreshBetHelp();
+    betNote.textContent=`Queued ${prebet.toFixed(2)} GEL for the next match.`;
+  };
+  const cancelQueued = ()=>{
+    if(queuedNext>0){ wallet+=queuedNext; queuedNext=0; updateWallet(); }
+    refreshBetHelp();
+    betNote.textContent='Queued bet cancelled and refunded.';
+  };
+
   minusBtn.onclick=()=> setBet(prebet-1);
   plusBtn.onclick =()=> setBet(prebet+1);
   amountInput.addEventListener('input',()=> setBet(amountInput.value));
   betBtn.onclick=()=>{
     ensureAudio(); if(!primed){ primed=true; startMusic(); }
     if(inLobby){
-      if(wallet<prebet) return;
-      wallet-=prebet; queuedNext=prebet; updateWallet();
-      betNote.textContent=`You're in! Stake ${prebet.toFixed(2)} GEL for the next match.`; refreshBetHelp();
+      queueBet();
     }else{
-      if(joinedCurrent) return;
-      if(queuedNext>0){ wallet+=queuedNext; queuedNext=0; updateWallet(); betNote.textContent='Queued bet cancelled and refunded.'; }
-      else{
-        if(wallet<prebet){ betNote.textContent='Not enough funds to queue.'; return; }
-        wallet-=prebet; queuedNext=prebet; updateWallet(); betNote.textContent=`Queued ${prebet.toFixed(2)} GEL for the next match. Tap again to cancel.`;
-      }
-      refreshBetHelp();
+      if(joinedCurrent) return;           // can't change stake mid-match if you are in
+      if(queuedNext>0) queueBet();        // tapping "Queued" again will enqueue another? keep as is
+      else queueBet();
     }
   };
+  cancelQueueBtn.onclick=cancelQueued;
 
-  // Music
+  // ===== MUSIC TOGGLE =====
   musicBtn.onclick=()=>{ ensureAudio(); if(!primed){ primed=true; } muted=!muted; musicBtn.classList.toggle('muted',muted); if(muted) stopMusic(); else startMusic(); };
 
-  // ---- BOOT ----
+  // ===== BOOT =====
   function init(){
-    wallet = BASE_WALLET;                // always 1500 on refresh
-    updateWallet();                      // paint both labels immediately
+    wallet = BASE_WALLET;
+    updateWallet();
     setBet(prebet);
     showOnly(lobbyPanel);
   }
